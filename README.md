@@ -14,6 +14,9 @@ This project is part of my 30-day capstone journey focused on strengthening back
 ## Render Deployment Link:-
 https://s64-kushansingh-capstone-chatwave.onrender.com
 
+## Netlify Deployment Link:-
+https://chatwaveio.netlify.app/
+
 ---
 ## 🗓️ 30-Day Capstone Plan
 
