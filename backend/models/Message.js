@@ -1,28 +1,42 @@
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
+  // Conversation this message belongs to
   conversationId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Conversation',
-    required: true // Ensures that a conversationId is required
+    required: true,
   },
+
+  // Sender of the message
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true // Ensures that a sender is required
+    required: true,
   },
+
+  // Text content of the message (optional for media-only messages)
   content: {
     type: String,
-    default: '' // Default to an empty string if no content is provided
+    default: '',
+    trim: true,
   },
+
+  // URL of media (images/files) if attached
   media: {
-    type: String, // Used for storing file/image URLs
-    default: '' // Default to an empty string if no media is provided
+    type: String,
+    default: '',
   },
-  readBy: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User' // This will store the IDs of users who have read the message
-  }]
-}, { timestamps: true });
+
+  // Users who have read the message (for read receipt tracking)
+  readBy: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }
+  ],
+}, {
+  timestamps: true, // Adds createdAt and updatedAt timestamps
+});
 
 module.exports = mongoose.model('Message', messageSchema);
