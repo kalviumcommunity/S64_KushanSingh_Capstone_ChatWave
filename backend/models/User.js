@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 // User Schema definition
 const userSchema = new mongoose.Schema({
@@ -6,42 +7,42 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    trim: true, // Trims spaces automatically
+    trim: true,
   },
 
   email: {
     type: String,
     required: true,
     unique: true,
-    lowercase: true, // Enforces lowercase emails
-    match: [/\S+@\S+\.\S+/, 'Please use a valid email address.'], // Regex for email validation
+    lowercase: true,
+    match: [/\S+@\S+\.\S+/, 'Please use a valid email address.'],
   },
 
   password: {
     type: String,
     required: true,
-    minlength: 6, // Enforces password strength
+    minlength: 6,
   },
 
   profilePic: {
     type: String,
-    default: '', // Stores image URL, can integrate with Cloudinary/AWS S3
+    default: '',
   },
 
   status: {
     type: String,
-    default: 'Hey there! I’m using ChatWave 🌊',
+    default: 'Hey there! I am using ChatWave 🌊',
     trim: true,
   },
 
   isOnline: {
     type: Boolean,
-    default: false, // Realtime presence status
+    default: false,
   },
 
   lastSeen: {
     type: Date,
-    default: Date.now, // Used for showing "last seen" status
+    default: Date.now,
   },
 
   contacts: [
@@ -49,10 +50,23 @@ const userSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     }
-  ], // Optional: To build a future "contacts/friends" system
+  ],
 
 }, {
-  timestamps: true, // Adds createdAt & updatedAt
+  timestamps: true,
 });
+
+// 🔐 Password hashing middleware
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// 🔍 Password match method
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);

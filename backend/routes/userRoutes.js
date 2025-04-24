@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
+const authMiddleware = require("../middleware/authMiddleware");  // Importing the JWT authentication middleware
 
-// GET /api/users - Fetch all users
+// GET /api/users - Fetch all users (Optional: Can be protected if needed)
 router.get("/", async (req, res) => {
   try {
     const users = await User.find();
@@ -12,7 +13,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST /api/users - Create a new user
+// POST /api/users - Create a new user (Unprotected, so that new users can sign up)
 router.post("/", async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -36,10 +37,14 @@ router.post("/", async (req, res) => {
   }
 });
 
-
-// PUT /api/users/:id - Update user by ID
-router.put("/:id", async (req, res) => {
+// PUT /api/users/:id - Update user by ID (Protected, so only logged-in users can update their profiles)
+router.put("/:id", authMiddleware, async (req, res) => {  // Using JWT middleware to protect this route
   const { id } = req.params;
+
+  // Check if the user trying to update is the same user (for security purposes)
+  if (req.user.id !== id) {
+    return res.status(403).json({ error: "You can only update your own profile." });
+  }
 
   try {
     const updatedUser = await User.findByIdAndUpdate(
