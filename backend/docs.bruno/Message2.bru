@@ -1,0 +1,17 @@
+meta {
+  name: Message2
+  type: http
+  seq: 10
+}
+
+post {
+  url: http://localhost:5000/api/messages
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  senderId: 680f14ec81ad8f9dd9b02465 @contentType(Text)
+  conversationId: 680f15f281ad8f9dd9b02468 @contentType(Text)
+  file: @file(D:\Pictures\Images\2.jpg) @contentType(File)
+}

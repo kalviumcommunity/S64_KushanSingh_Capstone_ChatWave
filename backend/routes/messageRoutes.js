@@ -1,62 +1,87 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 const Message = require("../models/Message");
+const Conversation = require("../models/Conversation");
+const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
-// GET /api/messages - Fetch all messages
-router.get("/", async (req, res) => {
+// Multer setup for handling file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// 💬 GET /api/messages/:conversationId - Fetch messages by conversation
+router.get("/:conversationId", async (req, res) => {
   try {
-    const messages = await Message.find().populate("senderId receiverId", "username email");
+    const messages = await Message.find({ conversationId: req.params.conversationId })
+      .populate("sender", "username email profilePic")
+      .sort({ createdAt: 1 });
+
     res.status(200).json(messages);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch messages." });
   }
 });
 
-// POST /api/messages - Send a new message
-router.post("/", async (req, res) => {
-  const { senderId, receiverId, text, conversationId } = req.body;
+// ✉️ POST /api/messages - Send a new message (text and/or media)
+router.post("/", upload.single('file'), async (req, res) => {
+  const { senderId, conversationId, content } = req.body;
 
-  // Validate input data
-  if (!senderId || !receiverId || !text || !conversationId) {
-    return res.status(400).json({ error: "All fields are required." });
+  if (!senderId || !conversationId) {
+    return res.status(400).json({ error: "senderId and conversationId are required." });
   }
 
   try {
-    // Create a new message using the senderId, receiverId, text, and conversationId
+    let mediaUrl = "";
+
+    // If file is attached, upload it to Cloudinary
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file); // Await the Cloudinary upload
+      mediaUrl = uploaded.secure_url;  // Get the media URL from Cloudinary
+    }
+
+    // Create and save new message
     const newMessage = new Message({
-      sender: senderId,          // Correctly map senderId to sender field
-      content: text,             // The message content
-      conversationId,            // The conversation's ID
-      media: "",                 // Optional media field
+      sender: senderId,
+      conversationId,
+      content: content || "", // If no text, set empty string
+      media: mediaUrl,        // Store media URL if exists
     });
 
-    // Save the message to the database
     const savedMessage = await newMessage.save();
 
-    // Respond with a success message
+    // Update lastMessage field in Conversation
+    await Conversation.findByIdAndUpdate(conversationId, { lastMessage: savedMessage._id });
+
+    // Emit new message to connected clients via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(conversationId).emit("newMessage", savedMessage);
+    }
+
     res.status(201).json({
-      message: "Message sent!",
+      message: "✅ Message sent successfully!",
       data: savedMessage,
     });
+
   } catch (err) {
     console.error("Error sending message:", err);
     res.status(500).json({ error: "Failed to send message." });
   }
 });
 
-
-// PUT /api/messages/:id - Edit a message
+// 🛠 PUT /api/messages/:id - Edit a message
 router.put("/:id", async (req, res) => {
-  const { text } = req.body;
+  const { content } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: "Message text is required to update." });
+  if (!content) {
+    return res.status(400).json({ error: "Updated content is required." });
   }
 
   try {
     const updatedMessage = await Message.findByIdAndUpdate(
       req.params.id,
-      { text },
+      { content },
       { new: true }
     );
 
@@ -69,6 +94,7 @@ router.put("/:id", async (req, res) => {
       data: updatedMessage,
     });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to update message." });
   }
 });

@@ -1,0 +1,19 @@
+meta {
+  name: Login1
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:5000/api/auth/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "username": "user",
+    "password": "password123"
+  }
+  
+}

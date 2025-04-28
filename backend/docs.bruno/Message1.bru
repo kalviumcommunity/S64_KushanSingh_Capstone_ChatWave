@@ -1,0 +1,20 @@
+meta {
+  name: Message1
+  type: http
+  seq: 9
+}
+
+post {
+  url: http://localhost:5000/api/messages
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "conversationId": "680f15f281ad8f9dd9b02468",
+    "senderId": "680f14ec81ad8f9dd9b02465",
+    "content": "Hello, this is a test message."
+  }
+  
+}

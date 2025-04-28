@@ -5,23 +5,30 @@ const generateToken = require('../utils/generateToken');
 const signup = async (req, res) => {
   const { username, email, password } = req.body;
 
-  if (!username || !email || !password)
+  // Validation: Ensure all fields are provided
+  if (!username || !email || !password) {
     return res.status(400).json({ message: 'All fields are required' });
+  }
 
+  // Check if user already exists in the database
   const userExists = await User.findOne({ email });
-  if (userExists)
+  if (userExists) {
     return res.status(400).json({ message: 'User already exists' });
+  }
 
-  const user = await User.create({ username, email, password });
+  // Create a new user
+  const user = new User({ username, email, password });
 
-  if (user) {
+  // Save user and handle errors
+  try {
+    await user.save();
     res.status(201).json({
       _id: user._id,
       username: user.username,
       email: user.email,
-      token: generateToken(user._id),
+      token: generateToken(user._id), // JWT Token generation
     });
-  } else {
+  } catch (error) {
     res.status(500).json({ message: 'Failed to create user' });
   }
 };
@@ -43,17 +50,18 @@ const login = async (req, res) => {
     user = await User.findOne({ email });
   }
 
-  // If user is found and password matches
-  if (user && (await user.matchPassword(password))) {
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      token: generateToken(user._id),
-    });
-  } else {
-    res.status(401).json({ message: 'Invalid username/email or password' });
+  // If user not found or password doesn't match
+  if (!user || !(await user.matchPassword(password))) {
+    return res.status(401).json({ message: 'Invalid username/email or password' });
   }
+
+  // If authentication is successful, return the user data and token
+  res.json({
+    _id: user._id,
+    username: user.username,
+    email: user.email,
+    token: generateToken(user._id), // JWT Token generation
+  });
 };
 
 module.exports = { signup, login };

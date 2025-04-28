@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "ChatWave",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
