@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom colors */
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --primary-light: #eef2ff;
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+.bg-primary-dark {
+  background-color: var(--primary-dark);
+}
+.bg-primary-light {
+  background-color: var(--primary-light);
+}
+.text-primary {
+  color: var(--primary);
+}
