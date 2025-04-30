@@ -39,4 +39,7 @@ const messageSchema = new mongoose.Schema({
   timestamps: true, // Adds createdAt and updatedAt timestamps
 });
 
-module.exports = mongoose.model('Message', messageSchema);
+// Check if the model already exists before creating it
+const Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
+
+module.exports = Message;

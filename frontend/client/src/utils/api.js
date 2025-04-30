@@ -1,30 +1,39 @@
+// src/utils/api.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-export const login = async (credentials) => {
-  try {
-    const response = await axios.post(`${API_URL}/auth/login`, credentials);
-    // Handle the response (store token, etc.)
-  } catch (error) {
-    console.error(error);
+// Add a request interceptor to add the auth token to requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-};
+);
 
-export const signup = async (data) => {
-  try {
-    const response = await axios.post(`${API_URL}/auth/signup`, data);
-    // Handle the response (store token, etc.)
-  } catch (error) {
-    console.error(error);
+// Add a response interceptor to handle common errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Handle unauthorized access
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
   }
-};
+);
 
-export const getConversations = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/conversations`);
-    return response.data;
-  } catch (error) {
-    console.error(error);
-  }
-};
+export default api;

@@ -1,34 +1,32 @@
-import React from 'react';
+// src/pages/Dashboard.jsx
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/chat/Sidebar';
 import ChatWindow from '../components/chat/ChatWindow';
-
-const dummyMessages = [
-  { text: "Hey, what's up!", isOwn: false },
-  { text: "All good! You?", isOwn: true },
-  { text: "Doing well. Working on a cool project.", isOwn: false },
-  { text: "Nice! Tell me more later!", isOwn: true },
-];
-
-const dummyConversations = [
-  {
-    id: 1,
-    name: 'Alice',
-    avatar: '/default-avatar.png',
-    lastMessage: 'See you soon!',
-  },
-  {
-    id: 2,
-    name: 'Bob',
-    avatar: '/default-avatar.png',
-    lastMessage: 'Got it!',
-  },
-];
+import { getChats } from '../utils/api';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const [chats, setChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) navigate('/login');
+
+    const fetchChats = async () => {
+      const data = await getChats();
+      setChats(data);
+      if (data.length > 0) setSelectedChat(data[0]);
+    };
+
+    fetchChats();
+  }, [navigate]);
+
   return (
-    <div className="h-screen flex">
-      <Sidebar conversations={dummyConversations} />
-      <ChatWindow messages={dummyMessages} />
+    <div className="flex h-screen">
+      <Sidebar chats={chats} onSelectChat={setSelectedChat} />
+      <ChatWindow selectedChat={selectedChat} />
     </div>
   );
 };

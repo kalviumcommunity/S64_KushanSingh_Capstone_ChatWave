@@ -1,43 +1,40 @@
-import React, { useState } from 'react';
-import Button from '../shared/Button';
+// src/components/forms/SignupForm.jsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { signup } from '../../utils/api';
 
 const SignupForm = () => {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [error, setError] = useState('');
 
-  const handleSignup = (e) => {
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Signup:', { name, email, password });
+    try {
+      const res = await signup(formData);
+      if (res.token) {
+        localStorage.setItem('token', res.token);
+        navigate('/dashboard');
+      } else {
+        setError(res.message || 'Signup failed');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred');
+    }
   };
 
   return (
-    <form onSubmit={handleSignup} className="flex flex-col gap-4 w-full max-w-sm">
-      <input
-        type="text"
-        placeholder="Name"
-        className="p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
-      <input
-        type="email"
-        placeholder="Email"
-        className="p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        className="p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      <Button type="submit" className="w-full">Signup</Button>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <input type="text" name="name" placeholder="Name" onChange={handleChange} className="input" required />
+      <input type="email" name="email" placeholder="Email" onChange={handleChange} className="input" required />
+      <input type="password" name="password" placeholder="Password" onChange={handleChange} className="input" required />
+      {error && <p className="text-red-500">{error}</p>}
+      <button type="submit" className="btn-primary w-full">Signup</button>
     </form>
   );
 };

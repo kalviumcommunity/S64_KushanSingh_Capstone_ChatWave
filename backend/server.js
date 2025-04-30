@@ -1,34 +1,33 @@
-const dotenv = require("dotenv");
-const connectDB = require("./config/db");
-const app = require("./app");
-const http = require("http");
-const { Server } = require("socket.io");
-const setupSocket = require("./socket");
+const http = require('http');
+const socketIo = require('socket.io');
+const connectDB = require('./config/db');
+const initializeSocket = require('./socket/socketManager');
+const app = require('./app');
 
-dotenv.config();
+// Connect to database
+connectDB();
 
-const PORT = process.env.PORT;
-
-// Create HTTP server
 const server = http.createServer(app);
-
-// Create Socket.IO server
-const io = new Server(server, {
+const io = socketIo(server, {
   cors: {
-    origin: "*", // Allow all origins (you can restrict later)
-    methods: ["GET", "POST"],
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type']
   },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  path: '/socket.io',
+  allowEIO3: true,
+  connectTimeout: 45000,
+  maxHttpBufferSize: 1e8
 });
 
-// Attach io to app if needed elsewhere
-app.set('io', io);
+// Initialize socket manager
+initializeSocket(io);
 
-// Connect DB and then start server
-connectDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
-
-  // Setup Socket.IO listeners after DB is connected
-  setupSocket(io);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

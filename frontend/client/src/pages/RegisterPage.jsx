@@ -1,9 +1,9 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import LoginForm from '../components/forms/LoginForm';
+import RegisterForm from '../components/forms/RegisterForm';
 import { Link } from 'react-router-dom';
 
-const LoginPage = () => {
+const RegisterPage = () => {
   const { user } = useAuth();
 
   if (user) {
@@ -15,21 +15,21 @@ const LoginPage = () => {
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Welcome to ChatWave
+            Create your account
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Sign in to your account
+            Join ChatWave today
           </p>
         </div>
-        <LoginForm />
+        <RegisterForm />
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
+            Already have an account?{' '}
             <Link
-              to="/register"
+              to="/login"
               className="font-medium text-indigo-600 hover:text-indigo-500"
             >
-              Sign up
+              Sign in
             </Link>
           </p>
         </div>
@@ -38,4 +38,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default RegisterPage; 

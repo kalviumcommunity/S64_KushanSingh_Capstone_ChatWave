@@ -1,7 +1,5 @@
 const io = require("socket.io");
-const User = require('./models/User');
-const Message = require("./models/Message");
-const Conversation = require("./models/Conversation");
+const { User, Message, Conversation } = require('./models');
 
 // Map to keep track of online users
 let onlineUsers = new Map();
@@ -86,14 +84,14 @@ const socketIO = (server) => {
       const { senderId, content, conversationId, media } = messageData;
 
       // Validate the incoming message data
-      if (!senderId || !content || !conversationId) {
+      if (!senderId || !conversationId) {
         return socket.emit("error", { message: "Message data is incomplete." });
       }
 
       // Save the new message to the database
       const newMessage = new Message({
         sender: senderId,
-        content,
+        content: content || "",
         conversationId,
         media: media || "", // Handle media if provided
       });
@@ -101,17 +99,14 @@ const socketIO = (server) => {
       await newMessage.save();
 
       // Emit the new message event to the specific conversation
-      socket.to(conversationId).emit("newMessage", newMessage);
+      socket.to(conversationId).emit("message:receive", {
+        conversationId,
+        message: newMessage
+      });
 
       // Update the conversation with the last message
       await Conversation.findByIdAndUpdate(conversationId, {
         lastMessage: newMessage._id,
-      });
-
-      // Optionally, update the last message in the participant's records (if needed)
-      const participants = await Conversation.findById(conversationId).populate("participants");
-      participants.forEach((participant) => {
-        socket.to(participant._id.toString()).emit("newMessage", newMessage);
       });
     });
 

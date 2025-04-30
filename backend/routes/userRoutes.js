@@ -1,24 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
-const authMiddleware = require("../middleware/authMiddleware");
-const upload = require("../middleware/multer");
-const cloudinary = require("../config/cloudinaryConfig");
-const streamifier = require("streamifier");
+const { auth } = require("../middleware/authMiddleware");
+const { User } = require("../models");
+const upload = require("../middleware/uploadMiddleware");
+const cloudinary = require("../config/cloudinary");
 
 // GET /api/users/me - Get logged-in user's profile
-router.get("/me", authMiddleware, async (req, res) => {
+router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ error: "User not found." });
-
-    res.status(200).json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      profilePic: user.profilePic,
-      status: user.status,
-    });
+    const user = await User.findById(req.user._id)
+      .select('-password')
+      .populate('conversations');
+    res.status(200).json(user);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user profile." });
   }
@@ -51,80 +44,56 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT /api/users/me - Update profile with deletion of old pic
-router.put("/me", authMiddleware, upload.single("profilePic"), async (req, res) => {
-  const { username, email, status } = req.body;
-  let profilePicUrl = undefined;
+// PUT /api/users/me - Update user profile
+router.put("/me", auth, upload.single('profilePic'), async (req, res) => {
+  const { username, email } = req.body;
 
-  if (!username || !email)
-    return res.status(400).json({ error: "Username and email are required." });
+  if (!username || !email) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
 
   try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: "User not found." });
+    const user = await User.findById(req.user._id);
 
-    // Upload new profile pic if available
+    // If a new profile picture was uploaded
     if (req.file) {
-      // ✅ Delete old image from Cloudinary if exists
+      // Delete old profile picture from Cloudinary if it exists
       if (user.profilePic) {
-        const parts = user.profilePic.split('/');
-        const filename = parts[parts.length - 1];
-        const publicId = `chatwave_profiles/${filename.split('.')[0]}`;
-
-        try {
-          await cloudinary.uploader.destroy(publicId);
-        } catch (err) {
-          console.error("⚠️ Failed to delete old image:", err.message);
-        }
+        const publicId = user.profilePic.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
       }
 
-      // ✅ Upload new image
-      const streamUpload = () =>
-        new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { folder: "chatwave_profiles" },
-            (error, result) => {
-              if (result) resolve(result);
-              else reject(error);
-            }
-          );
-          streamifier.createReadStream(req.file.buffer).pipe(stream);
-        });
+      // Upload new profile picture to Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'chatwave/profile-pics',
+        width: 500,
+        height: 500,
+        crop: 'fill'
+      });
 
-      const result = await streamUpload();
-      profilePicUrl = result.secure_url;
+      user.profilePic = result.secure_url;
     }
 
-    // ✅ Update user profile
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        $set: {
-          username,
-          email,
-          status,
-          ...(profilePicUrl && { profilePic: profilePicUrl }),
-        },
-      },
-      { new: true, runValidators: true }
-    );
+    user.username = username;
+    user.email = email;
+
+    if (req.body.password) {
+      user.password = req.body.password;
+    }
+
+    await user.save();
 
     res.status(200).json({
-      message: "User updated successfully!",
-      user: {
-        _id: updatedUser._id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        profilePic: updatedUser.profilePic,
-        status: updatedUser.status,
-      },
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      profilePic: user.profilePic
     });
   } catch (err) {
-    console.error("❌ Update error:", err);
-    res.status(500).json({ error: "Failed to update user." });
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: "Failed to update profile." });
   }
 });
-
 
 // GET /api/users - List all users (optional)
 router.get("/", async (req, res) => {
@@ -133,6 +102,32 @@ router.get("/", async (req, res) => {
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch users." });
+  }
+});
+
+// GET /api/users/search - Search users
+router.get("/search", auth, async (req, res) => {
+  const { query } = req.query;
+
+  if (!query || query.length < 2) {
+    return res.status(400).json({ error: "Search query must be at least 2 characters long." });
+  }
+
+  try {
+    const users = await User.find({
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { email: { $regex: query, $options: 'i' } }
+      ],
+      _id: { $ne: req.user._id }
+    })
+    .select('username email profilePic status')
+    .limit(10);
+
+    res.status(200).json(users);
+  } catch (err) {
+    console.error('Error searching users:', err);
+    res.status(500).json({ error: "Failed to search users." });
   }
 });
 

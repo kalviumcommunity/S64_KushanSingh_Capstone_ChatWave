@@ -1,27 +1,36 @@
-import React, { useState } from 'react';
-import Button from '../shared/Button';
+// src/components/chat/MessageInput.jsx
+import { useState } from 'react';
+import { sendMessage } from '../../utils/api';
+import { Send } from 'lucide-react';
 
-const MessageInput = () => {
-  const [text, setText] = useState('');
+const MessageInput = ({ selectedChat, onMessageSent }) => {
+  const [content, setContent] = useState('');
 
-  const handleSend = () => {
-    if (text.trim()) {
-      console.log('Send:', text);
-      setText('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    try {
+      const newMessage = await sendMessage(selectedChat._id, content);
+      onMessageSent(newMessage);
+      setContent('');
+    } catch (error) {
+      console.error('Failed to send message', error);
     }
   };
 
   return (
-    <div className="p-4 bg-white flex items-center gap-4">
+    <form onSubmit={handleSubmit} className="flex items-center p-4 border-t border-gray-300">
       <input
         type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Type a message..."
-        className="flex-1 p-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary"
+        placeholder="Type your message..."
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="flex-1 p-3 rounded-full bg-gray-100 outline-none"
       />
-      <Button onClick={handleSend}>Send</Button>
-    </div>
+      <button type="submit" className="ml-2 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600">
+        <Send size={20} />
+      </button>
+    </form>
   );
 };
 

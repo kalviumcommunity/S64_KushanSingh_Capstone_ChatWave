@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="400" cy="300" r="250" fill="#EFF6FF" opacity="0.5"/>
+  
+  <!-- Chat Bubbles -->
+  <g transform="translate(200, 200)">
+    <!-- Left Bubble -->
+    <path d="M0 0 C-50 0 -50 50 0 50 C50 50 50 0 0 0" fill="#3B82F6" opacity="0.8"/>
+    <path d="M-20 50 L0 70 L20 50" fill="#3B82F6" opacity="0.8"/>
+    
+    <!-- Right Bubble -->
+    <path d="M100 0 C150 0 150 50 100 50 C50 50 50 0 100 0" fill="#6366F1" opacity="0.8"/>
+    <path d="M120 50 L100 70 L80 50" fill="#6366F1" opacity="0.8"/>
+    
+    <!-- Center Bubble -->
+    <path d="M50 100 C100 100 100 150 50 150 C0 150 0 100 50 100" fill="#8B5CF6" opacity="0.8"/>
+    <path d="M30 150 L50 170 L70 150" fill="#8B5CF6" opacity="0.8"/>
+  </g>
+  
+  <!-- Decorative Elements -->
+  <circle cx="150" cy="150" r="20" fill="#3B82F6" opacity="0.3"/>
+  <circle cx="650" cy="450" r="30" fill="#6366F1" opacity="0.3"/>
+  <circle cx="200" cy="500" r="25" fill="#8B5CF6" opacity="0.3"/>
+</svg> 

@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const Message = require("../models/Message");
-const Conversation = require("../models/Conversation");
+const { Message, Conversation } = require('../models');
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
+const { auth } = require("../middleware/authMiddleware");
 
 // Multer setup for handling file uploads
 const storage = multer.memoryStorage();
@@ -24,28 +24,39 @@ router.get("/:conversationId", async (req, res) => {
 });
 
 // ✉️ POST /api/messages - Send a new message (text and/or media)
-router.post("/", upload.single('file'), async (req, res) => {
-  const { senderId, conversationId, content } = req.body;
-
-  if (!senderId || !conversationId) {
-    return res.status(400).json({ error: "senderId and conversationId are required." });
-  }
-
+router.post("/", auth, upload.single('file'), async (req, res) => {
   try {
+    const { conversationId, content } = req.body;
+    const senderId = req.user._id;
+
+    if (!conversationId) {
+      return res.status(400).json({ error: "conversationId is required." });
+    }
+
+    // Verify conversation exists and user is a participant
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    if (!conversation.participants.includes(senderId)) {
+      return res.status(403).json({ error: "You are not a participant in this conversation." });
+    }
+
     let mediaUrl = "";
 
     // If file is attached, upload it to Cloudinary
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file); // Await the Cloudinary upload
-      mediaUrl = uploaded.secure_url;  // Get the media URL from Cloudinary
+      const uploaded = await uploadToCloudinary(req.file);
+      mediaUrl = uploaded.secure_url;
     }
 
     // Create and save new message
     const newMessage = new Message({
       sender: senderId,
       conversationId,
-      content: content || "", // If no text, set empty string
-      media: mediaUrl,        // Store media URL if exists
+      content: content || "",
+      media: mediaUrl,
     });
 
     const savedMessage = await newMessage.save();
@@ -56,7 +67,10 @@ router.post("/", upload.single('file'), async (req, res) => {
     // Emit new message to connected clients via Socket.io
     const io = req.app.get('io');
     if (io) {
-      io.to(conversationId).emit("newMessage", savedMessage);
+      io.to(conversationId).emit("message:receive", {
+        conversationId,
+        message: savedMessage
+      });
     }
 
     res.status(201).json({
@@ -66,6 +80,9 @@ router.post("/", upload.single('file'), async (req, res) => {
 
   } catch (err) {
     console.error("Error sending message:", err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: "Failed to send message." });
   }
 });

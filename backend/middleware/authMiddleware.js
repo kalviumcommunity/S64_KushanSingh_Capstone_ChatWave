@@ -1,21 +1,62 @@
 const jwt = require('jsonwebtoken');
+const { User } = require('../models');
 
-const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization;
+const auth = async (req, res, next) => {
+  try {
+    let token;
 
-  if (token && token.startsWith('Bearer ')) {
-    const bearerToken = token.split(' ')[1]; // Extract the token
-
-    try {
-      const decoded = jwt.verify(bearerToken, process.env.JWT_SECRET); // Verify the token
-      req.user = decoded; // Add user info to the request object
-      next(); // Proceed to the next middleware/route handler
-    } catch (err) {
-      res.status(401).json({ message: 'Not authorized, token failed' }); // Token verification failed
+    // Get token from header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
     }
-  } else {
-    res.status(401).json({ message: 'Not authorized, no token provided' }); // No token provided
+
+    // Check if token exists
+    if (!token) {
+      return res.status(401).json({ message: 'Not authorized, no token' });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Get user from token
+    const user = await User.findById(decoded.id).select('-password');
+
+    if (!user) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ message: 'Not authorized' });
   }
 };
 
-module.exports = authMiddleware;
+const socketAuth = async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+      return next(new Error('Authentication error'));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+
+    if (!user) {
+      return next(new Error('User not found'));
+    }
+
+    socket.user = user;
+    next();
+  } catch (error) {
+    console.error('Socket auth error:', error);
+    next(new Error('Authentication error'));
+  }
+};
+
+module.exports = {
+  auth,
+  socketAuth
+};

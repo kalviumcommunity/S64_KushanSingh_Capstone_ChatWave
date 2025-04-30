@@ -1,12 +1,28 @@
-import React from 'react';
+// src/components/chat/MessageList.jsx
+import { useEffect, useState } from 'react';
+import { getMessages } from '../../utils/api';
+import UserAvatar from '../shared/UserAvatar';
 
-const MessageList = ({ messages = [] }) => {
+const MessageList = ({ selectedChat }) => {
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (selectedChat?._id) {
+        const data = await getMessages(selectedChat._id);
+        setMessages(data);
+      }
+    };
+    fetchMessages();
+  }, [selectedChat]);
+
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
-      {messages.map((msg, index) => (
-        <div key={index} className={`mb-4 flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}>
-          <div className={`p-3 rounded-lg max-w-xs ${msg.isOwn ? 'bg-primary text-white' : 'bg-gray-200 text-gray-800'}`}>
-            {msg.text}
+    <div className="flex-1 overflow-y-auto p-4">
+      {messages.map(msg => (
+        <div key={msg._id} className="mb-4 flex items-start gap-2">
+          <UserAvatar user={msg.sender} />
+          <div className="bg-gray-200 p-3 rounded-xl">
+            <p>{msg.content}</p>
           </div>
         </div>
       ))}

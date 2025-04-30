@@ -44,6 +44,7 @@ const conversationSchema = new mongoose.Schema(
   }
 );
 
-// Export the model
-const Conversation = mongoose.model("Conversation", conversationSchema);
+// Check if the model already exists before creating it
+const Conversation = mongoose.models.Conversation || mongoose.model("Conversation", conversationSchema);
+
 module.exports = Conversation;

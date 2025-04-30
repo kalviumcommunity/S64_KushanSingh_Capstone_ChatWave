@@ -1,21 +1,18 @@
-import React from 'react';
+// src/components/chat/Sidebar.jsx
 import UserAvatar from '../shared/UserAvatar';
 
-const Sidebar = ({ conversations = [] }) => {
+const Sidebar = ({ chats, onSelectChat }) => {
   return (
-    <div className="w-1/4 bg-gray-100 h-full p-4 overflow-y-auto">
-      <h2 className="text-xl font-bold mb-4">Chats</h2>
-      <div className="flex flex-col gap-4">
-        {conversations.map((conv) => (
-          <div key={conv.id} className="flex items-center gap-4 p-2 bg-white rounded-xl shadow hover:bg-primary-light cursor-pointer transition">
-            <UserAvatar src={conv.avatar} alt={conv.name} size="10" />
-            <div>
-              <p className="font-semibold">{conv.name}</p>
-              <p className="text-sm text-gray-500 truncate">{conv.lastMessage}</p>
-            </div>
-          </div>
+    <div className="w-1/3 border-r border-gray-300 p-4 overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-4">Chats</h2>
+      <ul>
+        {chats.map(chat => (
+          <li key={chat._id} onClick={() => onSelectChat(chat)} className="flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer rounded-md">
+            <UserAvatar user={chat.participants[1]} />
+            <span className="font-semibold">{chat.participants[1]?.name || 'User'}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };
