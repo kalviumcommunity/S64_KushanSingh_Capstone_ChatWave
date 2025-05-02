@@ -118,11 +118,10 @@ const ChatWindow = ({ conversation }) => {
 
     try {
       const formData = new FormData();
-      formData.append('senderId', user._id);
       formData.append('conversationId', conversation._id);
       formData.append('content', newMessage);
       if (selectedFile) {
-        formData.append('media', selectedFile);
+        formData.append('file', selectedFile);
       }
 
       const response = await api.post('/messages', formData, {
@@ -132,7 +131,7 @@ const ChatWindow = ({ conversation }) => {
       });
 
       if (response.data) {
-        setMessages(prev => [...prev, response.data]);
+        setMessages(prev => [...prev, response.data.data]);
         setNewMessage('');
         setSelectedFile(null);
         setPreviewUrl(null);

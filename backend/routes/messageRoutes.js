@@ -10,10 +10,11 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // 💬 GET /api/messages/:conversationId - Fetch messages by conversation
-router.get("/:conversationId", async (req, res) => {
+router.get("/:conversationId", auth, async (req, res) => {
   try {
-    const messages = await Message.find({ conversationId: req.params.conversationId })
+    const messages = await Message.find({ conversation: req.params.conversationId })
       .populate("sender", "username email profilePic")
+      .populate("recipient", "username email profilePic")
       .sort({ createdAt: 1 });
 
     res.status(200).json(messages);
@@ -43,39 +44,54 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
       return res.status(403).json({ error: "You are not a participant in this conversation." });
     }
 
+    // Get the recipient (other participant in the conversation)
+    const recipientId = conversation.participants.find(id => id.toString() !== senderId.toString());
+
     let mediaUrl = "";
+    let type = "text";
 
     // If file is attached, upload it to Cloudinary
     if (req.file) {
       const uploaded = await uploadToCloudinary(req.file);
       mediaUrl = uploaded.secure_url;
+      type = req.file.mimetype.startsWith('image/') ? 'image' : 'file';
     }
 
     // Create and save new message
     const newMessage = new Message({
       sender: senderId,
-      conversationId,
+      recipient: recipientId,
+      conversation: conversationId,
       content: content || "",
       media: mediaUrl,
+      type
     });
 
     const savedMessage = await newMessage.save();
 
+    // Populate the sender and recipient information
+    const populatedMessage = await Message.findById(savedMessage._id)
+      .populate("sender", "username email profilePic")
+      .populate("recipient", "username email profilePic");
+
     // Update lastMessage field in Conversation
-    await Conversation.findByIdAndUpdate(conversationId, { lastMessage: savedMessage._id });
+    await Conversation.findByIdAndUpdate(conversationId, { 
+      lastMessage: savedMessage._id,
+      updatedAt: new Date()
+    });
 
     // Emit new message to connected clients via Socket.io
     const io = req.app.get('io');
     if (io) {
       io.to(conversationId).emit("message:receive", {
         conversationId,
-        message: savedMessage
+        message: populatedMessage
       });
     }
 
     res.status(201).json({
       message: "✅ Message sent successfully!",
-      data: savedMessage,
+      data: populatedMessage,
     });
 
   } catch (err) {
@@ -88,7 +104,7 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
 });
 
 // 🛠 PUT /api/messages/:id - Edit a message
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   const { content } = req.body;
 
   if (!content) {
@@ -96,14 +112,26 @@ router.put("/:id", async (req, res) => {
   }
 
   try {
-    const updatedMessage = await Message.findByIdAndUpdate(
-      req.params.id,
-      { content },
-      { new: true }
-    );
-
-    if (!updatedMessage) {
+    const message = await Message.findById(req.params.id);
+    if (!message) {
       return res.status(404).json({ error: "Message not found." });
+    }
+
+    // Check if the user is the sender of the message
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: "You can only edit your own messages." });
+    }
+
+    message.content = content;
+    const updatedMessage = await message.save();
+
+    // Emit the updated message to connected clients
+    const io = req.app.get('io');
+    if (io) {
+      io.to(message.conversation.toString()).emit("message:update", {
+        messageId: updatedMessage._id,
+        content: updatedMessage.content
+      });
     }
 
     res.status(200).json({

@@ -38,11 +38,26 @@ const conversationSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    // Optional group name
+    groupName: {
+      type: String,
+      trim: true,
+    },
+
+    // Reference to the group admin
+    groupAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt
   }
 );
+
+// Create indexes
+conversationSchema.index({ participants: 1 });
 
 // Check if the model already exists before creating it
 const Conversation = mongoose.models.Conversation || mongoose.model("Conversation", conversationSchema);

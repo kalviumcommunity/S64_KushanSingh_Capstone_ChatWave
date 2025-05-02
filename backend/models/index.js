@@ -61,21 +61,27 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true
+    trim: true,
+    default: ''
   },
   conversation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Conversation',
     required: true
   },
-  read: {
-    type: Boolean,
-    default: false
+  media: {
+    type: String,
+    default: ''
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  type: {
+    type: String,
+    enum: ['text', 'image', 'file'],
+    default: 'text'
+  },
+  readBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, {
   timestamps: true
 });
@@ -90,10 +96,22 @@ const conversationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  isGroup: {
+    type: Boolean,
+    default: false
+  },
+  groupName: {
+    type: String,
+    trim: true
+  },
+  groupAdmin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  isTyping: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, {
   timestamps: true
 });
@@ -123,10 +141,25 @@ userSchema.methods.toJSON = function() {
   return user;
 };
 
+// Clear any existing models to prevent conflicts
+Object.keys(mongoose.models).forEach(modelName => {
+  delete mongoose.models[modelName];
+});
+
+// Create indexes
+messageSchema.index({ conversation: 1, createdAt: -1 });
+conversationSchema.index({ participants: 1 });
+userSchema.index({ username: 1, email: 1 });
+
 // Register models
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-const Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
-const Conversation = mongoose.models.Conversation || mongoose.model('Conversation', conversationSchema);
+const User = mongoose.model('User', userSchema);
+const Message = mongoose.model('Message', messageSchema);
+const Conversation = mongoose.model('Conversation', conversationSchema);
+
+// Import models
+const MessageModel = require('./Message');
+const UserModel = require('./User');
+const ConversationModel = require('./Conversation');
 
 module.exports = {
   User,

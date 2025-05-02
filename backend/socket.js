@@ -6,7 +6,13 @@ let onlineUsers = new Map();
 
 // Function to initialize Socket.io
 const socketIO = (server) => {
-  const socket = io(server);
+  const socket = io(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || "http://localhost:5173",
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
 
   // User connects to the socket server
   socket.on("connection", (socket) => {
@@ -17,6 +23,12 @@ const socketIO = (server) => {
       onlineUsers.set(socket.id, userId);
       console.log(`User ${userId} is online.`);
 
+      // Update user's online status in the database
+      await User.findByIdAndUpdate(userId, { 
+        isOnline: true,
+        lastSeen: new Date()
+      });
+
       // Emit to all users that a user has come online
       socket.broadcast.emit("updateUserStatus", { userId, isOnline: true });
 
@@ -25,11 +37,17 @@ const socketIO = (server) => {
     });
 
     // User disconnects from the socket server
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       const userId = onlineUsers.get(socket.id);
       if (userId) {
         onlineUsers.delete(socket.id);
         console.log(`User ${userId} is offline.`);
+
+        // Update user's online status in the database
+        await User.findByIdAndUpdate(userId, { 
+          isOnline: false,
+          lastSeen: new Date()
+        });
 
         // Emit to all users that a user has gone offline
         socket.broadcast.emit("updateUserStatus", { userId, isOnline: false });
@@ -40,43 +58,59 @@ const socketIO = (server) => {
     socket.on("messageSeen", async (messageData) => {
       const { messageId, userId, conversationId } = messageData;
 
-      // Update the message as seen
-      const message = await Message.findById(messageId);
-      if (message && !message.readBy.includes(userId)) {
-        message.readBy.push(userId);
-        await message.save();
+      try {
+        // Update the message as seen
+        const message = await Message.findById(messageId);
+        if (message && !message.readBy.includes(userId)) {
+          message.readBy.push(userId);
+          await message.save();
 
-        // Emit the message seen event to the specific conversation
-        socket.to(conversationId).emit("messageSeen", messageData);
+          // Emit the message seen event to the specific conversation
+          socket.to(conversationId).emit("messageSeen", messageData);
+        }
+      } catch (err) {
+        console.error("Error marking message as seen:", err);
       }
     });
 
     // Listen for typing indicator event
-    socket.on("typing", async (conversationId, userId) => {
-      // Emit typing event to other users in the conversation
-      socket.broadcast.to(conversationId).emit("typing", userId);
+    socket.on("typing", async (data) => {
+      const { conversationId, userId } = data;
+      
+      try {
+        // Emit typing event to other users in the conversation
+        socket.to(conversationId).emit("typing", userId);
 
-      // Optionally, add user to typing array in Conversation model
-      const conversation = await Conversation.findById(conversationId);
-      if (conversation && !conversation.isTyping.includes(userId)) {
-        conversation.isTyping.push(userId);
-        await conversation.save();
+        // Update typing status in conversation
+        const conversation = await Conversation.findById(conversationId);
+        if (conversation && !conversation.isTyping.includes(userId)) {
+          conversation.isTyping.push(userId);
+          await conversation.save();
+        }
+      } catch (err) {
+        console.error("Error handling typing event:", err);
       }
     });
 
     // Listen for stop typing event
-    socket.on("stopTyping", async (conversationId, userId) => {
-      // Remove user from typing array in Conversation model
-      const conversation = await Conversation.findById(conversationId);
-      if (conversation) {
-        conversation.isTyping = conversation.isTyping.filter(
-          (id) => id.toString() !== userId.toString()
-        );
-        await conversation.save();
-      }
+    socket.on("stopTyping", async (data) => {
+      const { conversationId, userId } = data;
 
-      // Emit stop typing event to other users in the conversation
-      socket.broadcast.to(conversationId).emit("stopTyping", userId);
+      try {
+        // Update typing status in conversation
+        const conversation = await Conversation.findById(conversationId);
+        if (conversation) {
+          conversation.isTyping = conversation.isTyping.filter(
+            (id) => id.toString() !== userId.toString()
+          );
+          await conversation.save();
+        }
+
+        // Emit stop typing event to other users in the conversation
+        socket.to(conversationId).emit("stopTyping", userId);
+      } catch (err) {
+        console.error("Error handling stop typing event:", err);
+      }
     });
 
     // Listen for new message event
