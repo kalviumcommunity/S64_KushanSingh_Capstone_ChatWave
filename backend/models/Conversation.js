@@ -50,9 +50,16 @@ const conversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+
+    // Last activity timestamp
+    lastActivity: {
+      type: Date,
+      default: Date.now,
+    }
   },
   {
-    timestamps: true, // Automatically manages createdAt and updatedAt
+    timestamps: true,
+    strictPopulate: false
   }
 );
 

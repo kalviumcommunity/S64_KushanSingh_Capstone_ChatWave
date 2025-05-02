@@ -1,4 +1,5 @@
 const { User, Message, Conversation } = require('../models');
+const mongoose = require('mongoose');
 
 // @desc    Get all conversations for a user
 // @route   GET /api/chat/conversations
@@ -33,6 +34,14 @@ const getMessages = async (req, res) => {
     const { conversationId } = req.params;
     const { page = 1, limit = 20 } = req.query;
 
+    // Validate conversationId
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid conversation ID'
+      });
+    }
+
     const conversation = await Conversation.findById(conversationId);
 
     if (!conversation) {
@@ -51,16 +60,13 @@ const getMessages = async (req, res) => {
     }
 
     const messages = await Message.find({
-      $or: [
-        { sender: req.user._id, receiver: conversation.participants.find(p => p.toString() !== req.user._id.toString()) },
-        { sender: conversation.participants.find(p => p.toString() !== req.user._id.toString()), receiver: req.user._id }
-      ]
+      conversation: conversationId
     })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate('sender', '-password')
-      .populate('receiver', '-password');
+      .populate('sender', 'username profilePic')
+      .populate('recipient', 'username profilePic');
 
     res.status(200).json({
       success: true,
@@ -68,6 +74,7 @@ const getMessages = async (req, res) => {
       hasMore: messages.length === limit
     });
   } catch (error) {
+    console.error('Error fetching messages:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -86,7 +93,7 @@ const markMessagesAsRead = async (req, res) => {
     await Message.updateMany(
       {
         _id: { $in: messageIds },
-        receiver: req.user._id,
+        recipient: req.user._id,
         readBy: { $ne: req.user._id }
       },
       {
@@ -99,6 +106,7 @@ const markMessagesAsRead = async (req, res) => {
       message: 'Messages marked as read'
     });
   } catch (error) {
+    console.error('Error marking messages as read:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

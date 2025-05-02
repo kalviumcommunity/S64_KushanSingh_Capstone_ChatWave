@@ -22,27 +22,28 @@ router.get("/", auth, async (req, res) => {
 
 // POST /api/conversations - Create a new conversation
 router.post("/", auth, async (req, res) => {
-  const { participants, isGroup, name } = req.body;
-
-  if (!participants || !Array.isArray(participants) || participants.length < 2) {
-    return res.status(400).json({
-      error: "A conversation requires at least two participants.",
-    });
-  }
-
   try {
-    const newConv = new Conversation({ 
-      participants, 
-      isGroup, 
-      name,
-      createdBy: req.user._id
-    });
-    
-    const savedConv = await newConv.save();
-    const populatedConv = await Conversation.findById(savedConv._id)
-      .populate("participants", "username email profilePic");
+    const { participants, isGroup, groupName } = req.body;
 
-    res.status(201).json(populatedConv);
+    // Ensure current user is included in participants
+    if (!participants.includes(req.user._id)) {
+      participants.push(req.user._id);
+    }
+
+    const newConversation = new Conversation({
+      participants,
+      isGroup: isGroup || false,
+      groupName: groupName || ''
+    });
+
+    await newConversation.save();
+
+    // Populate the participants information
+    const populatedConversation = await Conversation.findById(newConversation._id)
+      .populate("participants", "username email profilePic")
+      .populate("lastMessage");
+
+    res.status(201).json(populatedConversation);
   } catch (err) {
     console.error('Error creating conversation:', err);
     res.status(500).json({ error: "Failed to create conversation." });

@@ -18,25 +18,28 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
 
       setLoading(true);
       try {
-        const response = await api.get(`/users/search?query=${encodeURIComponent(searchQuery)}`);
+        const response = await api.get('/users/search', {
+          params: { query: searchQuery }
+        });
         
-        if (Array.isArray(response.data)) {
+        if (response.data && Array.isArray(response.data)) {
           setUsers(response.data);
+        } else if (response.data && Array.isArray(response.data.users)) {
+          setUsers(response.data.users);
         } else {
+          console.error('Invalid response format:', response.data);
           setUsers([]);
           toast.error('Invalid response format from server');
         }
       } catch (error) {
         console.error('Error searching users:', error);
         setUsers([]);
-        if (error.response) {
-          if (error.response.status === 401) {
-            toast.error('Please login again to continue');
-          } else {
-            toast.error(error.response.data.message || 'Failed to search users');
-          }
+        if (error.response?.status === 401) {
+          toast.error('Session expired. Please login again.');
+        } else if (error.response?.data?.error) {
+          toast.error(error.response.data.error);
         } else {
-          toast.error('Network error while searching users');
+          toast.error('Failed to search users. Please try again.');
         }
       } finally {
         setLoading(false);
@@ -47,7 +50,9 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
       clearTimeout(debounceTimer);
     }
 
-    debounceTimer = setTimeout(searchUsers, 500);
+    if (searchQuery.length >= 2) {
+      debounceTimer = setTimeout(searchUsers, 500);
+    }
 
     return () => {
       if (debounceTimer) {
@@ -67,6 +72,7 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -82,6 +88,7 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Search users"
             />
           </div>
         </div>
@@ -104,11 +111,17 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
                 key={user._id}
                 onClick={() => onSelectUser(user)}
                 className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                role="button"
+                tabIndex={0}
               >
                 <img
-                  src={user.profilePicture || '/default-avatar.png'}
+                  src={user.profilePic || '/default-avatar.png'}
                   alt={user.username}
-                  className="w-12 h-12 rounded-full mr-4"
+                  className="w-12 h-12 rounded-full mr-4 object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/default-avatar.png';
+                  }}
                 />
                 <div>
                   <h3 className="font-semibold">{user.username}</h3>

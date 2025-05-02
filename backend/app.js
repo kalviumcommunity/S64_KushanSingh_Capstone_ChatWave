@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
+const path = require('path');
 
 // Load environment variables
 dotenv.config();
@@ -19,11 +20,21 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
-  credentials: true
+  origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Parse JSON bodies
 app.use(express.json());
+// Parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
+// Parse cookies
 app.use(cookieParser());
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -41,11 +52,7 @@ app.get("/", (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
+  res.status(500).json({ error: 'Something broke!' });
 });
 
 // 404 handler

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Send, Image, Smile, MoreVertical, Paperclip, X } from 'lucide-react';
 import api from '../../utils/api';
@@ -20,14 +21,15 @@ const ChatWindow = ({ conversation }) => {
   const { user } = useAuth();
   const { socket } = useSocket();
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
 
   const otherUser = conversation.participants.find(p => p._id !== user._id);
 
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const response = await api.get(`/messages/${conversation._id}`);
-        setMessages(response.data);
+        const response = await api.get(`/chat/messages/${conversation._id}`);
+        setMessages(response.data.messages);
       } catch (err) {
         console.error('Error fetching messages:', err);
         toast.error('Failed to fetch messages');
@@ -42,7 +44,10 @@ const ChatWindow = ({ conversation }) => {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('message:receive', (data) => {
+    // Join the conversation room when component mounts
+    socket.emit('joinConversation', conversation._id);
+
+    const handleNewMessage = (data) => {
       if (data.conversationId === conversation._id) {
         setMessages(prev => {
           // Check if message already exists
@@ -52,9 +57,14 @@ const ChatWindow = ({ conversation }) => {
           }
           return prev;
         });
+        scrollToBottom();
       }
-    });
+    };
 
+    // Listen for new messages
+    socket.on('message:receive', handleNewMessage);
+
+    // Listen for message updates
     socket.on('message:update', (data) => {
       if (data.conversationId === conversation._id) {
         setMessages(prev => prev.map(msg => 
@@ -63,14 +73,17 @@ const ChatWindow = ({ conversation }) => {
       }
     });
 
+    // Listen for typing indicators
     socket.on('user:typing', (data) => {
       if (data.userId === otherUser._id) {
         setIsTyping(data.isTyping);
       }
     });
 
+    // Cleanup when component unmounts
     return () => {
-      socket.off('message:receive');
+      socket.emit('leaveConversation', conversation._id);
+      socket.off('message:receive', handleNewMessage);
       socket.off('message:update');
       socket.off('user:typing');
     };
@@ -147,7 +160,6 @@ const ChatWindow = ({ conversation }) => {
       });
 
       if (response.data) {
-        setMessages(prev => [...prev, response.data.data]);
         setNewMessage('');
         setSelectedFile(null);
         setPreviewUrl(null);
@@ -164,22 +176,31 @@ const ChatWindow = ({ conversation }) => {
     setShowEmojiPicker(false);
   };
 
+  const handleProfileClick = () => {
+    navigate(`/profile/${otherUser._id}`);
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Chat Header */}
       <div className="flex items-center p-4 border-b border-gray-200 bg-white shadow-sm">
-        <img
-          src={otherUser?.profilePicture || '/default-avatar.png'}
-          alt={otherUser?.username}
-          className="w-10 h-10 rounded-full mr-4 object-cover ring-2 ring-gray-200"
-        />
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-800">{otherUser?.username}</h3>
-          {isTyping && (
-            <p className="text-sm text-gray-500">typing...</p>
-          )}
+        <div 
+          className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+          onClick={handleProfileClick}
+        >
+          <img
+            src={otherUser?.profilePic || '/default-avatar.png'}
+            alt={otherUser?.username}
+            className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
+          />
+          <div>
+            <h3 className="font-semibold text-gray-800">{otherUser?.username}</h3>
+            {isTyping && (
+              <p className="text-sm text-gray-500">typing...</p>
+            )}
+          </div>
         </div>
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors ml-auto">
           <MoreVertical className="w-5 h-5 text-gray-600" />
         </button>
       </div>

@@ -9,21 +9,6 @@ const { auth } = require("../middleware/authMiddleware");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// 💬 GET /api/messages/:conversationId - Fetch messages by conversation
-router.get("/:conversationId", auth, async (req, res) => {
-  try {
-    const messages = await Message.find({ conversation: req.params.conversationId })
-      .populate("sender", "username email profilePic")
-      .populate("recipient", "username email profilePic")
-      .sort({ createdAt: 1 });
-
-    res.status(200).json(messages);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch messages." });
-  }
-});
-
 // ✉️ POST /api/messages - Send a new message (text and/or media)
 router.post("/", auth, upload.single('file'), async (req, res) => {
   try {
@@ -46,6 +31,10 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
 
     // Get the recipient (other participant in the conversation)
     const recipientId = conversation.participants.find(id => id.toString() !== senderId.toString());
+
+    if (!recipientId) {
+      return res.status(400).json({ error: "Could not determine recipient for this conversation." });
+    }
 
     let mediaUrl = "";
     let type = "text";

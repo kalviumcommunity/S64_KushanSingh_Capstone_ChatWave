@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { User, Mail, Lock, Camera, LogOut } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 
 const ProfilePage = () => {
+  const { userId } = useParams();
   const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [profileUser, setProfileUser] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -18,19 +20,42 @@ const ProfilePage = () => {
   });
   const [profilePic, setProfilePic] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const isOwnProfile = !userId || userId === user?._id;
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        username: user.username,
-        email: user.email,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-      setPreviewUrl(user.profilePic);
-    }
-  }, [user]);
+    const fetchProfile = async () => {
+      try {
+        if (userId) {
+          const response = await api.get(`/users/${userId}`);
+          setProfileUser(response.data);
+          setFormData({
+            username: response.data.username,
+            email: response.data.email,
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+          });
+          setPreviewUrl(response.data.profilePic);
+        } else {
+          setProfileUser(user);
+          setFormData({
+            username: user.username,
+            email: user.email,
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+          });
+          setPreviewUrl(user.profilePic);
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        toast.error('Failed to load profile');
+        navigate('/chat');
+      }
+    };
+
+    fetchProfile();
+  }, [userId, user, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -66,6 +91,8 @@ const ProfilePage = () => {
   };
 
   const handleSubmit = async (e) => {
+    if (!isOwnProfile) return;
+    
     e.preventDefault();
     setLoading(true);
 
@@ -104,7 +131,7 @@ const ProfilePage = () => {
       }
 
       // Update user profile
-      const response = await axios.put('/api/users/me', formDataToSend, {
+      const response = await api.put('/users/me', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -132,165 +159,232 @@ const ProfilePage = () => {
     }
   };
 
+  if (!profileUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="bg-white shadow rounded-lg overflow-hidden">
           {/* Profile Header */}
           <div className="px-4 py-5 sm:px-6 bg-indigo-600">
-            <h2 className="text-2xl font-bold text-white">Profile Settings</h2>
+            <h2 className="text-2xl font-bold text-white">
+              {isOwnProfile ? 'Profile Settings' : `${profileUser.username}'s Profile`}
+            </h2>
           </div>
 
           <div className="px-4 py-5 sm:p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Profile Picture */}
-              <div className="flex flex-col items-center space-y-4">
-                <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-gray-300">
-                  {previewUrl ? (
-                    <img
-                      src={previewUrl}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
+            {isOwnProfile ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Profile Picture */}
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-gray-300">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <User className="w-12 h-12 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <label className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                      <User className="w-12 h-12 text-gray-400" />
+                    <Camera className="w-4 h-4 mr-2" />
+                    <span>Change Photo</span>
+                  </label>
+                </div>
+
+                {/* Username */}
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                    Username
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
                     </div>
-                  )}
-                </div>
-                <label className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <Camera className="w-4 h-4 mr-2" />
-                  <span>Change Photo</span>
-                </label>
-              </div>
-
-              {/* Username */}
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      id="username"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      required
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
                 </div>
-              </div>
 
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
+                {/* Email */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    Email
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
                   </div>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
                 </div>
-              </div>
 
-              {/* Current Password */}
-              <div>
-                <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
-                  Current Password
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                {/* Current Password */}
+                <div>
+                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
+                    Current Password
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      id="currentPassword"
+                      name="currentPassword"
+                      value={formData.currentPassword}
+                      onChange={handleChange}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
                   </div>
-                  <input
-                    type="password"
-                    id="currentPassword"
-                    name="currentPassword"
-                    value={formData.currentPassword}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
                 </div>
-              </div>
 
-              {/* New Password */}
-              <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-                  New Password
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                {/* New Password */}
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                    New Password
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      id="newPassword"
+                      name="newPassword"
+                      value={formData.newPassword}
+                      onChange={handleChange}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
                   </div>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    name="newPassword"
-                    value={formData.newPassword}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
                 </div>
-              </div>
 
-              {/* Confirm Password */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  Confirm New Password
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                {/* Confirm Password */}
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                    Confirm New Password
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
                   </div>
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-6">
+                {/* Profile Picture */}
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-gray-300">
+                    {profileUser.profilePic ? (
+                      <img
+                        src={profileUser.profilePic}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <User className="w-12 h-12 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Username */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Username
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={profileUser.username}
+                      readOnly
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Email
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      value={profileUser.email}
+                      readOnly
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                    />
+                  </div>
                 </div>
               </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       </div>

@@ -24,9 +24,9 @@ const userSchema = new mongoose.Schema({
     minlength: [6, 'Password must be at least 6 characters long'],
     select: false
   },
-  profilePicture: {
+  profilePic: {
     type: String,
-    default: 'default-avatar.png'
+    default: '/default-avatar.png'
   },
   isOnline: {
     type: Boolean,
@@ -39,22 +39,27 @@ const userSchema = new mongoose.Schema({
   contacts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }],
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  }]
 }, {
   timestamps: true
 });
 
+// Password hashing middleware
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Method to compare password
+userSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
 const messageSchema = new mongoose.Schema({
   sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
@@ -73,11 +78,6 @@ const messageSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  type: {
-    type: String,
-    enum: ['text', 'image', 'file'],
-    default: 'text'
-  },
   readBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -89,8 +89,7 @@ const messageSchema = new mongoose.Schema({
 const conversationSchema = new mongoose.Schema({
   participants: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   }],
   lastMessage: {
     type: mongoose.Schema.Types.ObjectId,
@@ -102,65 +101,25 @@ const conversationSchema = new mongoose.Schema({
   },
   groupName: {
     type: String,
-    trim: true
+    trim: true,
+    default: ''
   },
   groupAdmin: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  },
-  isTyping: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }]
+  }
 }, {
   timestamps: true
 });
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-// Method to get user without sensitive data
-userSchema.methods.toJSON = function() {
-  const user = this.toObject();
-  delete user.password;
-  return user;
-};
-
-// Clear any existing models to prevent conflicts
-Object.keys(mongoose.models).forEach(modelName => {
-  delete mongoose.models[modelName];
-});
-
-// Create indexes
-messageSchema.index({ conversation: 1, createdAt: -1 });
-conversationSchema.index({ participants: 1 });
-userSchema.index({ username: 1, email: 1 });
-
-// Register models
+// Create models
 const User = mongoose.model('User', userSchema);
-const Message = mongoose.model('Message', messageSchema);
-const Conversation = mongoose.model('Conversation', conversationSchema);
 
-// Import models
-const MessageModel = require('./Message');
-const UserModel = require('./User');
-const ConversationModel = require('./Conversation');
+// Import other models
+const Message = require('./Message');
+const Conversation = require('./Conversation');
 
+// Export models
 module.exports = {
   User,
   Message,

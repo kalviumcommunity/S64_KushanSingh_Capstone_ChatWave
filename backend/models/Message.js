@@ -40,26 +40,24 @@ const messageSchema = new mongoose.Schema({
     default: '',
   },
 
+  // Type of message (text, image, file)
+  type: {
+    type: String,
+    enum: ['text', 'image', 'file'],
+    default: 'text'
+  },
+
   // Users who have read the message (for read receipt tracking)
   readBy: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     }
-  ],
-
-  // Message type (text, image, file)
-  type: {
-    type: String,
-    enum: ['text', 'image', 'file'],
-    default: 'text'
-  }
+  ]
 }, {
-  timestamps: true, // Adds createdAt and updatedAt timestamps
+  timestamps: true,
+  strictPopulate: false
 });
-
-// Index for faster queries
-messageSchema.index({ conversation: 1, createdAt: -1 });
 
 // Create the model
 const Message = mongoose.model('Message', messageSchema);

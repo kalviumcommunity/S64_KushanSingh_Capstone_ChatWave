@@ -151,7 +151,10 @@ const ChatSidebar = ({ onSelectConversation }) => {
     <div className="flex flex-col h-full bg-white">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+          <div 
+            className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+            onClick={() => navigate('/profile')}
+          >
             {user?.profilePic ? (
               <img
                 src={user.profilePic}
@@ -219,7 +222,7 @@ const ChatSidebar = ({ onSelectConversation }) => {
                 className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
               >
                 <img
-                  src={otherUser?.profilePicture || '/default-avatar.png'}
+                  src={otherUser?.profilePic || '/default-avatar.png'}
                   alt={otherUser?.username}
                   className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-gray-200"
                 />

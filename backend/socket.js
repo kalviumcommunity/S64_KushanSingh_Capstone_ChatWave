@@ -8,32 +8,52 @@ let onlineUsers = new Map();
 const socketIO = (server) => {
   const socket = io(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:5173",
-      methods: ["GET", "POST"],
-      credentials: true
-    }
+      origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true,
+      allowedHeaders: ["Content-Type", "Authorization"]
+    },
+    allowEIO3: true,
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
   });
 
   // User connects to the socket server
   socket.on("connection", (socket) => {
     console.log("A user connected: ", socket.id);
 
+    // Handle authentication error
+    socket.on("error", (error) => {
+      console.error("Socket error:", error);
+      if (error.type === "UnauthorizedError" || error.code === "ECONNRESET") {
+        socket.disconnect();
+      }
+    });
+
     // Track user online status (when user logs in)
     socket.on("userOnline", async (userId) => {
-      onlineUsers.set(socket.id, userId);
-      console.log(`User ${userId} is online.`);
+      try {
+        onlineUsers.set(socket.id, userId);
+        console.log(`User ${userId} is online.`);
 
-      // Update user's online status in the database
-      await User.findByIdAndUpdate(userId, { 
-        isOnline: true,
-        lastSeen: new Date()
-      });
+        // Update user's online status in the database
+        await User.findByIdAndUpdate(userId, { 
+          isOnline: true,
+          lastSeen: new Date()
+        });
 
-      // Emit to all users that a user has come online
-      socket.broadcast.emit("updateUserStatus", { userId, isOnline: true });
+        // Emit to all users that a user has come online
+        socket.broadcast.emit("updateUserStatus", { userId, isOnline: true });
 
-      // Emit the updated online user status to the current user
-      socket.emit("updateUserStatus", { userId, isOnline: true });
+        // Emit the updated online user status to the current user
+        socket.emit("updateUserStatus", { userId, isOnline: true });
+      } catch (err) {
+        console.error("Error updating user online status:", err);
+      }
     });
 
     // User disconnects from the socket server
@@ -122,41 +142,66 @@ const socketIO = (server) => {
         return socket.emit("error", { message: "Message data is incomplete." });
       }
 
-      // Save the new message to the database
-      const newMessage = new Message({
-        sender: senderId,
-        content: content || "",
-        conversationId,
-        media: media || "", // Handle media if provided
-      });
+      try {
+        // Save the new message to the database
+        const newMessage = new Message({
+          sender: senderId,
+          content: content || "",
+          conversation: conversationId,
+          media: media || "",
+        });
 
-      await newMessage.save();
+        // Populate sender information before saving
+        await newMessage.populate('sender', 'username profilePic');
+        await newMessage.save();
 
-      // Emit the new message event to the specific conversation
-      socket.to(conversationId).emit("message:receive", {
-        conversationId,
-        message: newMessage
-      });
+        // Get the conversation to find all participants
+        const conversation = await Conversation.findById(conversationId)
+          .populate('participants', '_id');
 
-      // Update the conversation with the last message
-      await Conversation.findByIdAndUpdate(conversationId, {
-        lastMessage: newMessage._id,
-      });
+        if (!conversation) {
+          return socket.emit("error", { message: "Conversation not found." });
+        }
+
+        // Emit the new message to all participants in the conversation
+        socket.to(conversationId).emit("message:receive", {
+          conversationId,
+          message: newMessage
+        });
+
+        // Also emit to the sender
+        socket.emit("message:receive", {
+          conversationId,
+          message: newMessage
+        });
+
+        // Update the conversation with the last message
+        await Conversation.findByIdAndUpdate(conversationId, {
+          lastMessage: newMessage._id,
+          updatedAt: new Date()
+        });
+
+      } catch (err) {
+        console.error("Error handling new message:", err);
+        socket.emit("error", { message: "Failed to send message." });
+      }
     });
 
     // Listen for a user joining a conversation
-    socket.on("joinConversation", async (conversationId) => {
+    socket.on("joinConversation", (conversationId) => {
       socket.join(conversationId);
       console.log(`User joined conversation: ${conversationId}`);
     });
 
     // Listen for a user leaving a conversation
-    socket.on("leaveConversation", async (conversationId) => {
+    socket.on("leaveConversation", (conversationId) => {
       socket.leave(conversationId);
       console.log(`User left conversation: ${conversationId}`);
     });
 
   });
+
+  return socket;
 };
 
 module.exports = socketIO;
