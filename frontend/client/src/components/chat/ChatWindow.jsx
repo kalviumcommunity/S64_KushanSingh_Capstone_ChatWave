@@ -44,7 +44,22 @@ const ChatWindow = ({ conversation }) => {
 
     socket.on('message:receive', (data) => {
       if (data.conversationId === conversation._id) {
-        setMessages(prev => [...prev, data.message]);
+        setMessages(prev => {
+          // Check if message already exists
+          const exists = prev.some(msg => msg._id === data.message._id);
+          if (!exists) {
+            return [...prev, data.message];
+          }
+          return prev;
+        });
+      }
+    });
+
+    socket.on('message:update', (data) => {
+      if (data.conversationId === conversation._id) {
+        setMessages(prev => prev.map(msg => 
+          msg._id === data.messageId ? { ...msg, content: data.content } : msg
+        ));
       }
     });
 
@@ -56,6 +71,7 @@ const ChatWindow = ({ conversation }) => {
 
     return () => {
       socket.off('message:receive');
+      socket.off('message:update');
       socket.off('user:typing');
     };
   }, [socket, conversation._id, otherUser._id]);
@@ -189,13 +205,13 @@ const ChatWindow = ({ conversation }) => {
           messages.map((message) => (
             <div
               key={message._id}
-              className={`flex ${message.sender === user._id ? 'justify-end' : 'justify-start'} mb-4`}
+              className={`flex ${message.sender._id === user._id ? 'justify-end' : 'justify-start'} mb-4`}
             >
               <div
                 className={`max-w-[70%] rounded-2xl p-4 ${
-                  message.sender === user._id
+                  message.sender._id === user._id
                     ? 'bg-blue-600 text-white rounded-tr-none shadow-sm'
-                    : 'bg-white text-gray-800 rounded-tl-none shadow-sm'
+                    : 'bg-white text-gray-800 rounded-tl-none shadow-sm border border-gray-200'
                 }`}
               >
                 {message.media && (
@@ -206,7 +222,7 @@ const ChatWindow = ({ conversation }) => {
                   />
                 )}
                 <p className="text-sm">{message.content}</p>
-                <span className={`text-xs mt-1 block ${message.sender === user._id ? 'text-blue-100' : 'text-gray-500'}`}>
+                <span className={`text-xs mt-1 block ${message.sender._id === user._id ? 'text-blue-100' : 'text-gray-500'}`}>
                   {new Date(message.createdAt).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit'
