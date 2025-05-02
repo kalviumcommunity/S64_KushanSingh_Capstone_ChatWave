@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Send, Image, Smile, MoreVertical, Paperclip, X } from 'lucide-react';
+import { Send, Image, Smile, MoreVertical, Paperclip, X, Bell } from 'lucide-react';
 import api from '../../utils/api';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
@@ -17,9 +17,10 @@ const ChatWindow = ({ conversation }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const fileInputRef = useRef(null);
   const { user } = useAuth();
-  const { socket } = useSocket();
+  const { socket, notifications, clearNotification } = useSocket();
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
@@ -30,6 +31,9 @@ const ChatWindow = ({ conversation }) => {
       try {
         const response = await api.get(`/chat/messages/${conversation._id}`);
         setMessages(response.data.messages);
+        // Clear notification when opening conversation
+        clearNotification(conversation._id);
+        setHasNewMessage(false);
       } catch (err) {
         console.error('Error fetching messages:', err);
         toast.error('Failed to fetch messages');
@@ -39,7 +43,7 @@ const ChatWindow = ({ conversation }) => {
     };
 
     fetchMessages();
-  }, [conversation._id]);
+  }, [conversation._id, clearNotification]);
 
   useEffect(() => {
     if (!socket) return;
@@ -62,6 +66,10 @@ const ChatWindow = ({ conversation }) => {
           return prev;
         });
         scrollToBottom();
+        setHasNewMessage(false);
+      } else {
+        // If message is from another conversation, show notification
+        setHasNewMessage(true);
       }
     };
 
@@ -223,9 +231,17 @@ const ChatWindow = ({ conversation }) => {
             )}
           </div>
         </div>
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors ml-auto">
-          <MoreVertical className="w-5 h-5 text-gray-600" />
-        </button>
+        <div className="flex items-center space-x-2 ml-auto">
+          {hasNewMessage && (
+            <div className="relative">
+              <Bell className="w-5 h-5 text-blue-500 animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </div>
+          )}
+          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <MoreVertical className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </div>
 
       {/* Messages Area */}

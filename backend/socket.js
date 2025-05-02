@@ -14,12 +14,13 @@ const socketIO = (server) => {
       allowedHeaders: ["Content-Type", "Authorization"]
     },
     allowEIO3: true,
-    transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
-    pingInterval: 25000,
+    transports: ['websocket'],
+    pingTimeout: 30000,
+    pingInterval: 10000,
     reconnection: true,
     reconnectionAttempts: 5,
-    reconnectionDelay: 1000
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000
   });
 
   // User connects to the socket server
@@ -53,7 +54,7 @@ const socketIO = (server) => {
       }
     });
 
-    // Handle new messages
+    // Handle new messages (both old and new event names)
     socket.on("newMessage", async (data) => {
       try {
         const { senderId, content, conversationId, media } = data;
@@ -72,7 +73,7 @@ const socketIO = (server) => {
         )?._id;
 
         if (!recipientId) {
-          return socket.emit('error', { message: 'Could not determine recipient' });
+          return socket.emit('error', { message: 'Recipient not found' });
         }
 
         // Save the message to the database
@@ -101,72 +102,64 @@ const socketIO = (server) => {
           message: newMessage
         });
 
-        // Also emit to the sender
+        // Also emit to sender (for optimistic updates)
         socket.emit('message:receive', {
           conversationId,
           message: newMessage
         });
 
+        // Emit notification to recipient if they're not in the conversation
+        const recipientSocket = Array.from(io.sockets.sockets.values())
+          .find(s => s.userId === recipientId.toString());
+        
+        if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
+          recipientSocket.emit('newMessageNotification', {
+            conversationId,
+            message: newMessage,
+            sender: newMessage.sender
+          });
+        }
       } catch (error) {
-        console.error("Error handling new message:", error);
+        console.error("Error sending message:", error);
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
 
-    // Handle typing indicators
-    socket.on('user:typing', (data) => {
+    // Handle typing indicators (both old and new event names)
+    socket.on("typing", async (data) => {
       const { conversationId, isTyping } = data;
-      socket.broadcast.to(conversationId).emit('user:typing', {
-        userId: socket.id,
+      socket.to(conversationId).emit('user:typing', {
+        userId: socket.userId,
         isTyping
       });
     });
 
-    // Handle joining a conversation
-    socket.on('joinConversation', (conversationId) => {
+    // Handle conversation room joining
+    socket.on("joinConversation", (conversationId) => {
       socket.join(conversationId);
-      console.log(`User ${socket.id} joined conversation ${conversationId}`);
+      console.log(`User joined conversation: ${conversationId}`);
     });
 
-    // Handle leaving a conversation
-    socket.on('leaveConversation', (conversationId) => {
+    // Handle conversation room leaving
+    socket.on("leaveConversation", (conversationId) => {
       socket.leave(conversationId);
-      console.log(`User ${socket.id} left conversation ${conversationId}`);
-    });
-
-    // Handle user going offline
-    socket.on('userOffline', async (userId) => {
-      try {
-        onlineUsers.delete(socket.id);
-        console.log(`User ${userId} is offline.`);
-
-        // Update user's online status in the database
-        await User.findByIdAndUpdate(userId, { 
-          isOnline: false,
-          lastSeen: new Date()
-        });
-
-        // Emit to all users that a user has gone offline
-        socket.broadcast.emit("updateUserStatus", { userId, isOnline: false });
-      } catch (error) {
-        console.error("Error updating user offline status:", error);
-      }
+      console.log(`User left conversation: ${conversationId}`);
     });
 
     // Handle disconnection
     socket.on("disconnect", async () => {
-      console.log("A user disconnected: ", socket.id);
+      console.log("User disconnected: ", socket.id);
       const userId = onlineUsers.get(socket.id);
       if (userId) {
+        onlineUsers.delete(socket.id);
         try {
-          onlineUsers.delete(socket.id);
           await User.findByIdAndUpdate(userId, { 
             isOnline: false,
             lastSeen: new Date()
           });
           socket.broadcast.emit("updateUserStatus", { userId, isOnline: false });
         } catch (error) {
-          console.error("Error handling user disconnect:", error);
+          console.error("Error updating user offline status:", error);
         }
       }
     });
