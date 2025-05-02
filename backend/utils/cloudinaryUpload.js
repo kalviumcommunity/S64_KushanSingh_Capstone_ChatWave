@@ -8,13 +8,17 @@ const uploadToCloudinary = async (file) => {
     
     if (file.buffer) {
       // Handle buffer upload (from multer memory storage)
-      result = await cloudinary.uploader.upload_stream({
-        folder: 'chatwave',
-        resource_type: 'auto'
-      }, (error, result) => {
-        if (error) throw error;
-        return result;
-      }).end(file.buffer);
+      result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream({
+          folder: 'chatwave',
+          resource_type: 'auto'
+        }, (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        });
+        
+        uploadStream.end(file.buffer);
+      });
     } else if (file.path) {
       // Handle file path upload
       result = await cloudinary.uploader.upload(file.path, {
@@ -26,6 +30,10 @@ const uploadToCloudinary = async (file) => {
       fs.unlinkSync(file.path);
     } else {
       throw new Error('Invalid file format');
+    }
+
+    if (!result || !result.secure_url) {
+      throw new Error('Failed to get secure URL from Cloudinary');
     }
 
     return result;

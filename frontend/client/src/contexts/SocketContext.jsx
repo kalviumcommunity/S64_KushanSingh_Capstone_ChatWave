@@ -16,7 +16,8 @@ export const SocketProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000/api', {
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const newSocket = io(baseURL, {
       auth: {
         token
       },
@@ -40,6 +41,8 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('connect', () => {
       console.log('Socket connected');
+      // Emit user online status
+      newSocket.emit('userOnline', user._id);
     });
 
     newSocket.on('connect_error', (error) => {
@@ -68,6 +71,7 @@ export const SocketProvider = ({ children }) => {
 
     return () => {
       if (newSocket) {
+        newSocket.emit('userOffline', user._id);
         newSocket.removeAllListeners();
         newSocket.close();
       }

@@ -41,32 +41,35 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
 
     // If file is attached, upload it to Cloudinary
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file);
-      mediaUrl = uploaded.secure_url;
-      type = req.file.mimetype.startsWith('image/') ? 'image' : 'file';
+      try {
+        const uploaded = await uploadToCloudinary(req.file);
+        mediaUrl = uploaded.secure_url;
+        type = req.file.mimetype.startsWith('image/') ? 'image' : 'file';
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        return res.status(500).json({ error: "Failed to upload file." });
+      }
     }
 
     // Create and save new message
     const newMessage = new Message({
       sender: senderId,
       recipient: recipientId,
-      conversation: conversationId,
       content: content || "",
+      conversation: conversationId,
       media: mediaUrl,
       type
     });
 
-    const savedMessage = await newMessage.save();
+    // Populate sender and recipient information
+    await newMessage.populate('sender', 'username profilePic');
+    await newMessage.populate('recipient', 'username profilePic');
+    await newMessage.save();
 
-    // Populate the sender and recipient information
-    const populatedMessage = await Message.findById(savedMessage._id)
-      .populate("sender", "username email profilePic")
-      .populate("recipient", "username email profilePic");
-
-    // Update lastMessage field in Conversation
-    await Conversation.findByIdAndUpdate(conversationId, { 
-      lastMessage: savedMessage._id,
-      updatedAt: new Date()
+    // Update conversation's last message and activity
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: newMessage._id,
+      lastActivity: new Date()
     });
 
     // Emit new message to connected clients via Socket.io
@@ -74,13 +77,13 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
     if (io) {
       io.to(conversationId).emit("message:receive", {
         conversationId,
-        message: populatedMessage
+        message: newMessage
       });
     }
 
     res.status(201).json({
       message: "✅ Message sent successfully!",
-      data: populatedMessage,
+      data: newMessage,
     });
 
   } catch (err) {
