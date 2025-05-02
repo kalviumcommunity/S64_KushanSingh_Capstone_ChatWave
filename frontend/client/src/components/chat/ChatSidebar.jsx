@@ -7,8 +7,7 @@ import { chatAPI } from '../../utils/api';
 import { Search, LogOut, MessageSquarePlus } from 'lucide-react';
 import ChatOptionsMenu from './ChatOptionsMenu';
 
-const ChatSidebar = ({ onSelectConversation, onOpenNewChat }) => {
-  const [conversations, setConversations] = useState([]);
+const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setConversations }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, logout } = useAuth();
@@ -61,7 +60,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat }) => {
     };
 
     fetchConversations();
-  }, [logout, navigate]);
+  }, [logout, navigate, setConversations]);
 
   useEffect(() => {
     if (!socket) return;
@@ -86,44 +85,14 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat }) => {
     return () => {
       socket.off('message:receive');
     };
-  }, [socket]);
+  }, [socket, setConversations]);
 
   const handleLogout = async () => {
     try {
       await logout();
-      // No need to show success message as we're navigating away
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if there's an error, we should still navigate to login
       navigate('/login');
-    }
-  };
-
-  const handleNewChat = async (selectedUser) => {
-    try {
-      const response = await chatAPI.createOrGetConversation(selectedUser._id);
-      if (response.data && response.data.conversation) {
-        const conversation = response.data.conversation;
-        const exists = conversations.some(conv => conv._id === conversation._id);
-        if (!exists) {
-          setConversations(prev => [conversation, ...prev]);
-        }
-        onSelectConversation(conversation);
-        toast.success('Chat started');
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (error) {
-      console.error('Error starting new chat:', error);
-      if (error.response) {
-        if (error.response.status === 401) {
-          toast.error('Please login again to continue');
-        } else {
-          toast.error(error.response.data.message || 'Failed to start new chat');
-        }
-      } else {
-        toast.error('Failed to start new chat. Please try again.');
-      }
     }
   };
 

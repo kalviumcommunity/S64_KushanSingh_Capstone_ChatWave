@@ -4,11 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import ChatSidebar from '../components/chat/ChatSidebar';
 import ChatWindow from '../components/chat/ChatWindow';
 import NewChatModal from '../components/chat/NewChatModal';
+import { chatAPI } from '../utils/api';
+import { toast } from 'react-hot-toast';
 
 const ChatPage = () => {
   const { user } = useAuth();
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+  const [conversations, setConversations] = useState([]);
 
   if (!user) {
     return <Navigate to="/login" />;
@@ -19,9 +22,34 @@ const ChatPage = () => {
   const handleCloseNewChatModal = () => setIsNewChatModalOpen(false);
 
   // Handler for when a user is selected in the modal
-  const handleSelectUser = (conversation) => {
-    setSelectedConversation(conversation);
-    setIsNewChatModalOpen(false);
+  const handleSelectUser = async (selectedUser) => {
+    try {
+      const response = await chatAPI.createOrGetConversation(selectedUser._id);
+      if (response.data && response.data.conversation) {
+        const conversation = response.data.conversation;
+        // Add to conversations if not already present
+        const exists = conversations.some(conv => conv._id === conversation._id);
+        if (!exists) {
+          setConversations(prev => [conversation, ...prev]);
+        }
+        setSelectedConversation(conversation);
+        setIsNewChatModalOpen(false);
+        toast.success('Chat started');
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('Error starting new chat:', error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          toast.error('Please login again to continue');
+        } else {
+          toast.error(error.response.data.message || 'Failed to start new chat');
+        }
+      } else {
+        toast.error('Failed to start new chat. Please try again.');
+      }
+    }
   };
 
   return (
@@ -31,6 +59,8 @@ const ChatPage = () => {
         <ChatSidebar 
           onSelectConversation={setSelectedConversation} 
           onOpenNewChat={handleOpenNewChatModal}
+          conversations={conversations}
+          setConversations={setConversations}
         />
       </div>
 
