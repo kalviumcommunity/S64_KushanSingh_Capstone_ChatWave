@@ -54,96 +54,86 @@ const socketIO = (server) => {
       }
     });
 
-    // Handle new messages (both old and new event names)
-    socket.on("newMessage", async (data) => {
+    // Handle user offline status
+    socket.on('userOffline', async (userId) => {
       try {
-        const { senderId, content, conversationId, media } = data;
+        await User.findByIdAndUpdate(userId, { isOnline: false });
+        socket.broadcast.emit("updateUserStatus", { userId, isOnline: false });
+      } catch (error) {
+        console.error('Error updating user offline status:', error);
+      }
+    });
 
-        // Get the conversation to find the recipient
-        const conversation = await Conversation.findById(conversationId)
-          .populate('participants', '_id');
+    // Handle conversation joining
+    socket.on('joinConversation', (conversationId) => {
+      socket.join(conversationId);
+      console.log(`User joined conversation: ${conversationId}`);
+    });
 
-        if (!conversation) {
-          return socket.emit('error', { message: 'Conversation not found' });
-        }
+    // Handle conversation leaving
+    socket.on('leaveConversation', (conversationId) => {
+      socket.leave(conversationId);
+      console.log(`User left conversation: ${conversationId}`);
+    });
 
-        // Find the recipient (other participant in the conversation)
-        const recipientId = conversation.participants.find(
-          participant => participant._id.toString() !== senderId.toString()
-        )?._id;
-
-        if (!recipientId) {
-          return socket.emit('error', { message: 'Recipient not found' });
-        }
-
-        // Save the message to the database
-        const newMessage = new Message({
-          sender: senderId,
-          recipient: recipientId,
-          content: content || "",
+    // Handle new message
+    socket.on('message:send', async (data) => {
+      try {
+        const { conversationId, content, senderId, media } = data;
+        
+        const message = new Message({
           conversation: conversationId,
-          media: media || ""
+          sender: senderId,
+          content,
+          media
         });
 
-        // Populate sender and recipient information
-        await newMessage.populate('sender', 'username profilePic');
-        await newMessage.populate('recipient', 'username profilePic');
-        await newMessage.save();
+        await message.save();
 
-        // Update conversation's last message and activity
-        await Conversation.findByIdAndUpdate(conversationId, {
-          lastMessage: newMessage._id,
-          lastActivity: new Date()
-        });
+        // Populate sender details
+        await message.populate('sender', 'username profilePic');
 
-        // Emit the message to all users in the conversation
+        // Emit to all users in the conversation
         socket.to(conversationId).emit('message:receive', {
           conversationId,
-          message: newMessage
+          message
         });
 
-        // Also emit to sender (for optimistic updates)
-        socket.emit('message:receive', {
-          conversationId,
-          message: newMessage
+        // Emit notification to other users
+        const conversation = await message.populate('conversation');
+        const otherUsers = conversation.conversation.participants.filter(
+          p => p.toString() !== senderId
+        );
+
+        otherUsers.forEach(userId => {
+          const recipientSocket = Array.from(io.sockets.sockets.values())
+            .find(s => s.userId === userId.toString());
+          
+          if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
+            recipientSocket.emit('newMessageNotification', {
+              conversationId,
+              message: {
+                content,
+                media
+              },
+              sender: message.sender
+            });
+          }
         });
 
-        // Emit notification to recipient if they're not in the conversation
-        const recipientSocket = Array.from(io.sockets.sockets.values())
-          .find(s => s.userId === recipientId.toString());
-        
-        if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
-          recipientSocket.emit('newMessageNotification', {
-            conversationId,
-            message: newMessage,
-            sender: newMessage.sender
-          });
-        }
       } catch (error) {
-        console.error("Error sending message:", error);
+        console.error('Error handling message:', error);
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
 
-    // Handle typing indicators (both old and new event names)
-    socket.on("typing", async (data) => {
+    // Handle typing status
+    socket.on('user:typing', (data) => {
       const { conversationId, isTyping } = data;
       socket.to(conversationId).emit('user:typing', {
         userId: socket.userId,
         isTyping
       });
-    });
-
-    // Handle conversation room joining
-    socket.on("joinConversation", (conversationId) => {
-      socket.join(conversationId);
-      console.log(`User joined conversation: ${conversationId}`);
-    });
-
-    // Handle conversation room leaving
-    socket.on("leaveConversation", (conversationId) => {
-      socket.leave(conversationId);
-      console.log(`User left conversation: ${conversationId}`);
     });
 
     // Handle disconnection

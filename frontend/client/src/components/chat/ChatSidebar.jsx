@@ -5,14 +5,12 @@ import { useSocket } from '../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import { chatAPI } from '../../utils/api';
 import { Search, LogOut, MessageSquarePlus } from 'lucide-react';
-import NewChatModal from './NewChatModal';
 import ChatOptionsMenu from './ChatOptionsMenu';
 
-const ChatSidebar = ({ onSelectConversation }) => {
+const ChatSidebar = ({ onSelectConversation, onOpenNewChat }) => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const { user, logout } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
@@ -104,18 +102,13 @@ const ChatSidebar = ({ onSelectConversation }) => {
   const handleNewChat = async (selectedUser) => {
     try {
       const response = await chatAPI.createOrGetConversation(selectedUser._id);
-      
       if (response.data && response.data.conversation) {
         const conversation = response.data.conversation;
-        
-        // Check if conversation already exists in the list
         const exists = conversations.some(conv => conv._id === conversation._id);
         if (!exists) {
           setConversations(prev => [conversation, ...prev]);
         }
-        
         onSelectConversation(conversation);
-        setIsNewChatModalOpen(false);
         toast.success('Chat started');
       } else {
         throw new Error('Invalid response from server');
@@ -146,9 +139,7 @@ const ChatSidebar = ({ onSelectConversation }) => {
   const handleDeleteChat = async (conversationId) => {
     try {
       await chatAPI.deleteConversation(conversationId);
-      // Remove the conversation from the local state
       setConversations(prev => prev.filter(conv => conv._id !== conversationId));
-      // Clear the selected conversation if it was the deleted one
       onSelectConversation(null);
       toast.success('Chat deleted successfully');
     } catch (error) {
@@ -187,7 +178,7 @@ const ChatSidebar = ({ onSelectConversation }) => {
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setIsNewChatModalOpen(true)}
+              onClick={onOpenNewChat}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <MessageSquarePlus className="w-5 h-5 text-gray-600" />
@@ -221,14 +212,14 @@ const ChatSidebar = ({ onSelectConversation }) => {
             <MessageSquarePlus className="w-12 h-12 text-gray-400 mb-4" />
             <p className="text-gray-500">No conversations yet</p>
             <button
-              onClick={() => setIsNewChatModalOpen(true)}
+              onClick={onOpenNewChat}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
             >
               Start New Chat
             </button>
           </div>
         ) : (
-          conversations.map((conversation) => {
+          filteredConversations.map((conversation) => {
             const otherUser = conversation.participants.find(p => p._id !== user._id);
             return (
               <div
@@ -266,11 +257,6 @@ const ChatSidebar = ({ onSelectConversation }) => {
           })
         )}
       </div>
-      <NewChatModal
-        isOpen={isNewChatModalOpen}
-        onClose={() => setIsNewChatModalOpen(false)}
-        onSelectUser={handleNewChat}
-      />
     </div>
   );
 };

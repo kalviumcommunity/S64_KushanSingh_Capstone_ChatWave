@@ -3,20 +3,35 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ChatSidebar from '../components/chat/ChatSidebar';
 import ChatWindow from '../components/chat/ChatWindow';
+import NewChatModal from '../components/chat/NewChatModal';
 
 const ChatPage = () => {
   const { user } = useAuth();
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" />;
   }
 
+  // Handler for starting a new chat from anywhere
+  const handleOpenNewChatModal = () => setIsNewChatModalOpen(true);
+  const handleCloseNewChatModal = () => setIsNewChatModalOpen(false);
+
+  // Handler for when a user is selected in the modal
+  const handleSelectUser = (conversation) => {
+    setSelectedConversation(conversation);
+    setIsNewChatModalOpen(false);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-80 border-r border-gray-200 bg-white">
-        <ChatSidebar onSelectConversation={setSelectedConversation} />
+        <ChatSidebar 
+          onSelectConversation={setSelectedConversation} 
+          onOpenNewChat={handleOpenNewChatModal}
+        />
       </div>
 
       {/* Main Chat Area */}
@@ -39,7 +54,7 @@ const ChatPage = () => {
               </p>
               <div className="space-y-4">
                 <button
-                  onClick={() => setSelectedConversation(null)}
+                  onClick={handleOpenNewChatModal}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
                 >
                   Start New Chat
@@ -52,6 +67,11 @@ const ChatPage = () => {
           </div>
         )}
       </div>
+      <NewChatModal
+        isOpen={isNewChatModalOpen}
+        onClose={handleCloseNewChatModal}
+        onSelectUser={handleSelectUser}
+      />
     </div>
   );
 };

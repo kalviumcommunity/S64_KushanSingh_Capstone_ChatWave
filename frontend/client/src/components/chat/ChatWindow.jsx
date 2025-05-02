@@ -32,7 +32,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
       try {
         const response = await api.get(`/chat/messages/${conversation._id}`);
         setMessages(response.data.messages);
-        // Clear notification when opening conversation
         clearNotification(conversation._id);
         setHasNewMessage(false);
       } catch (err) {
@@ -49,16 +48,13 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
   useEffect(() => {
     if (!socket) return;
 
-    // Join the conversation room when component mounts
     socket.emit('joinConversation', conversation._id);
 
     const handleNewMessage = (data) => {
       if (data.conversationId === conversation._id) {
         setMessages(prev => {
-          // Check if message already exists
           const exists = prev.some(msg => msg._id === data.message._id);
           if (!exists) {
-            // Remove any optimistic message for this content
             const filtered = prev.filter(msg => 
               !msg.isOptimistic || msg.content !== data.message.content
             );
@@ -68,36 +64,19 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
         });
         scrollToBottom();
         setHasNewMessage(false);
-      } else {
-        // If message is from another conversation, show notification
-        setHasNewMessage(true);
       }
     };
 
-    // Listen for new messages
     socket.on('message:receive', handleNewMessage);
-
-    // Listen for message updates
-    socket.on('message:update', (data) => {
-      if (data.conversationId === conversation._id) {
-        setMessages(prev => prev.map(msg => 
-          msg._id === data.messageId ? { ...msg, content: data.content } : msg
-        ));
-      }
-    });
-
-    // Listen for typing indicators
     socket.on('user:typing', (data) => {
       if (data.userId === otherUser._id) {
         setIsTyping(data.isTyping);
       }
     });
 
-    // Cleanup when component unmounts
     return () => {
       socket.emit('leaveConversation', conversation._id);
       socket.off('message:receive', handleNewMessage);
-      socket.off('message:update');
       socket.off('user:typing');
     };
   }, [socket, conversation._id, otherUser._id]);
@@ -131,13 +110,11 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         toast.error('Please select an image file');
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('File size should be less than 5MB');
         return;
@@ -145,7 +122,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
 
       setSelectedFile(file);
       
-      // Create preview URL
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result);
@@ -166,9 +142,8 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
         formData.append('file', selectedFile);
       }
 
-      // Optimistically update the UI
       const tempMessage = {
-        _id: Date.now().toString(), // Temporary ID
+        _id: Date.now().toString(),
         sender: user,
         content: newMessage,
         media: selectedFile ? URL.createObjectURL(selectedFile) : null,
@@ -189,7 +164,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
       });
 
       if (response.data) {
-        // Remove the optimistic message and add the real one
         setMessages(prev => {
           const filtered = prev.filter(msg => !msg.isOptimistic);
           return [...filtered, response.data.data];
@@ -198,7 +172,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
     } catch (err) {
       console.error('Error sending message:', err);
       toast.error('Failed to send message');
-      // Remove the optimistic message on error
       setMessages(prev => prev.filter(msg => !msg.isOptimistic));
     }
   };
@@ -212,7 +185,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
     navigate(`/profile/${otherUser._id}`);
   };
 
-  // Add delete handlers for chat and history
   const handleDeleteHistory = async () => {
     try {
       await chatAPI.deleteChatHistory(conversation._id);
@@ -230,7 +202,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
       await chatAPI.deleteConversation(conversation._id);
       toast.success('Chat deleted successfully');
       if (onDeleteChat) onDeleteChat(conversation._id);
-      // Optionally, navigate away or clear chat window
     } catch (error) {
       console.error('Error deleting chat:', error);
       toast.error(error.response?.data?.message || 'Failed to delete chat');

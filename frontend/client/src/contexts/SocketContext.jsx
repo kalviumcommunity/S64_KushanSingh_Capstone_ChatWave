@@ -13,65 +13,48 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user, skipping socket connection');
+      return;
+    }
 
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const newSocket = io(baseURL, {
+    console.log('Connecting to socket server...');
+    const newSocket = io(import.meta.env.VITE_API_URL, {
+      withCredentials: true,
       auth: {
-        token
+        token: user.token
       },
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      autoConnect: true,
-      forceNew: true,
-      path: '/socket.io',
-      withCredentials: true,
-      query: {
-        token
-      }
+      reconnectionDelayMax: 5000
     });
 
     newSocket.on('connect', () => {
-      console.log('Socket connected');
-      // Emit user online status
+      console.log('Socket connected successfully');
       newSocket.emit('userOnline', user._id);
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      if (error.message === 'xhr poll error') {
-        console.log('Polling error, attempting to reconnect...');
-      }
+      toast.error('Failed to connect to chat server');
     });
 
     newSocket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
-      if (reason === 'io server disconnect' || reason === 'transport close') {
-        setTimeout(() => {
-          if (!newSocket.connected) {
-            newSocket.connect();
-          }
-        }, 1000);
-      }
     });
 
     newSocket.on('error', (error) => {
       console.error('Socket error:', error);
+      toast.error(error.message || 'Socket error occurred');
     });
 
-    // Handle new message notifications
     newSocket.on('newMessageNotification', (data) => {
+      console.log('New message notification:', data);
       const { message, sender } = data;
       setNotifications(prev => [...prev, data]);
       
-      // Show toast notification
       toast.custom((t) => (
         <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
           <img 
@@ -95,6 +78,7 @@ export const SocketProvider = ({ children }) => {
     setSocket(newSocket);
 
     return () => {
+      console.log('Cleaning up socket connection');
       if (newSocket) {
         newSocket.emit('userOffline', user._id);
         newSocket.removeAllListeners();
