@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useSocket } from './SocketContext';
 
 const AuthContext = createContext();
 
@@ -50,11 +49,12 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
-      const { user, token } = response.data;
-      localStorage.setItem('token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
-      return response.data;
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+        setUser(response.data.user);
+        return response.data;
+      }
     } catch (error) {
       throw error;
     }
@@ -63,11 +63,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await api.post('/auth/login', credentials);
-      const { user, token } = response.data;
-      localStorage.setItem('token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
-      return response.data;
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+        setUser(response.data.user);
+        return response.data;
+      }
     } catch (error) {
       throw error;
     }
@@ -75,27 +76,26 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Get socket from context
-      const { socket } = useSocket();
-      
-      // Close socket connection if it exists
-      if (socket) {
-        socket.close();
-      }
-      
-      // Clear local storage and API headers
+      // Clear local storage and API headers first
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
       
-      // Call logout API
-      await api.post('/auth/logout');
-      
-      // Clear user state and navigate
+      // Clear user state
       setUser(null);
+      
+      try {
+        // Attempt to call logout API, but don't wait for it
+        await api.post('/auth/logout');
+      } catch (error) {
+        // Ignore API errors during logout
+        console.log('Logout API call failed, continuing with local cleanup');
+      }
+      
+      // Navigate to login page
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if API call fails, we should still clear local state
+      // Even if there's an error, we should still clear local state
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
       setUser(null);
@@ -108,12 +108,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     register,
     login,
-    logout
+    logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }; 

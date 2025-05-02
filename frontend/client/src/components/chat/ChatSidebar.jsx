@@ -62,7 +62,7 @@ const ChatSidebar = ({ onSelectConversation }) => {
     };
 
     fetchConversations();
-  }, []);
+  }, [logout, navigate]);
 
   useEffect(() => {
     if (!socket) return;
@@ -92,9 +92,11 @@ const ChatSidebar = ({ onSelectConversation }) => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
+      // No need to show success message as we're navigating away
     } catch (error) {
-      toast.error('Failed to logout');
+      console.error('Logout error:', error);
+      // Even if there's an error, we should still navigate to login
+      navigate('/login');
     }
   };
 
@@ -146,17 +148,24 @@ const ChatSidebar = ({ onSelectConversation }) => {
   });
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
+    <div className="flex flex-col h-full bg-gray-100 w-80 border-r border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <img
-              src={user.profilePicture || '/default-avatar.png'}
-              alt={user.username}
-              className="w-10 h-10 rounded-full"
-            />
-            <span className="font-semibold">{user.username}</span>
+            {user?.profilePic ? (
+              <img
+                src={user.profilePic}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                <span className="text-gray-500 text-sm">
+                  {user?.username?.charAt(0)?.toUpperCase()}
+                </span>
+              </div>
+            )}
+            <span className="font-semibold">{user?.username}</span>
           </div>
           <div className="flex items-center space-x-2">
             <button
@@ -173,21 +182,17 @@ const ChatSidebar = ({ onSelectConversation }) => {
             </button>
           </div>
         </div>
-
-        {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search or start new chat"
+            placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-gray-200 focus:outline-none focus:border-blue-500"
           />
         </div>
       </div>
-
-      {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -234,8 +239,6 @@ const ChatSidebar = ({ onSelectConversation }) => {
           })
         )}
       </div>
-
-      {/* New Chat Modal */}
       <NewChatModal
         isOpen={isNewChatModalOpen}
         onClose={() => setIsNewChatModalOpen(false)}

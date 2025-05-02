@@ -13,7 +13,7 @@ const generateToken = (id) => {
 // @access  Public
 const register = async (req, res) => {
   try {
-    const { username, email, password, profilePicture } = req.body;
+    const { username, email, password, profilePic } = req.body;
 
     // Check if user already exists
     const userExists = await User.findOne({ $or: [{ email }, { username }] });
@@ -30,7 +30,7 @@ const register = async (req, res) => {
       username,
       email,
       password,
-      profilePicture
+      profilePic
     });
 
     if (user) {
@@ -50,16 +50,16 @@ const register = async (req, res) => {
           _id: user._id,
           username: user.username,
           email: user.email,
-          profilePicture: user.profilePicture,
-          status: user.status
+          profilePic: user.profilePic
         },
         token
       });
     }
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Server error during registration',
       error: error.message
     });
   }
@@ -108,8 +108,7 @@ const login = async (req, res) => {
         _id: user._id,
         username: user.username,
         email: user.email,
-        profilePicture: user.profilePicture,
-        status: user.status
+        profilePic: user.profilePic
       },
       token
     });
