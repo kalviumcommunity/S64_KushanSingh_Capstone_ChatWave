@@ -15,13 +15,17 @@ const io = socketIo(server, {
     credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type']
   },
-  transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
+  transports: ['websocket'],
+  pingTimeout: 30000,
+  pingInterval: 10000,
   path: '/socket.io',
   allowEIO3: true,
-  connectTimeout: 45000,
-  maxHttpBufferSize: 1e8
+  connectTimeout: 20000,
+  maxHttpBufferSize: 1e8,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000
 });
 
 // Initialize socket manager

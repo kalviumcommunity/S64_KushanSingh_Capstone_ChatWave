@@ -53,7 +53,11 @@ const ChatWindow = ({ conversation }) => {
           // Check if message already exists
           const exists = prev.some(msg => msg._id === data.message._id);
           if (!exists) {
-            return [...prev, data.message];
+            // Remove any optimistic message for this content
+            const filtered = prev.filter(msg => 
+              !msg.isOptimistic || msg.content !== data.message.content
+            );
+            return [...filtered, data.message];
           }
           return prev;
         });
@@ -153,6 +157,22 @@ const ChatWindow = ({ conversation }) => {
         formData.append('file', selectedFile);
       }
 
+      // Optimistically update the UI
+      const tempMessage = {
+        _id: Date.now().toString(), // Temporary ID
+        sender: user,
+        content: newMessage,
+        media: selectedFile ? URL.createObjectURL(selectedFile) : null,
+        createdAt: new Date(),
+        isOptimistic: true
+      };
+
+      setMessages(prev => [...prev, tempMessage]);
+      setNewMessage('');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      scrollToBottom();
+
       const response = await api.post('/messages', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -160,14 +180,17 @@ const ChatWindow = ({ conversation }) => {
       });
 
       if (response.data) {
-        setNewMessage('');
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        scrollToBottom();
+        // Remove the optimistic message and add the real one
+        setMessages(prev => {
+          const filtered = prev.filter(msg => !msg.isOptimistic);
+          return [...filtered, response.data.data];
+        });
       }
     } catch (err) {
       console.error('Error sending message:', err);
       toast.error('Failed to send message');
+      // Remove the optimistic message on error
+      setMessages(prev => prev.filter(msg => !msg.isOptimistic));
     }
   };
 

@@ -23,8 +23,7 @@ const initializeSocket = (io) => {
           await user.save();
 
           // Notify others about user's online status
-          socket.broadcast.emit('updateUserStatus', { userId: socket.userId, isOnline: true });
-          socket.emit('updateUserStatus', { userId: socket.userId, isOnline: true });
+          io.of("/api").emit('updateUserStatus', { userId: socket.userId, isOnline: true });
         }
       } catch (error) {
         console.error('User status update error:', error);
@@ -50,103 +49,83 @@ const initializeSocket = (io) => {
         )?._id;
 
         if (!recipientId) {
-          return socket.emit('error', { message: 'Could not determine recipient' });
+          return socket.emit('error', { message: 'Recipient not found' });
         }
 
-        // Save the message to the database
-        const newMessage = new Message({
+        // Create and save the message
+        const message = new Message({
+          conversation: conversationId,
           sender: senderId,
           recipient: recipientId,
-          content: content || "",
-          conversation: conversationId,
-          media: media || ""
+          content,
+          media
         });
 
-        // Populate sender and recipient information
-        await newMessage.populate('sender', 'username profilePic');
-        await newMessage.populate('recipient', 'username profilePic');
-        await newMessage.save();
+        await message.save();
+
+        // Populate the message with sender details
+        const populatedMessage = await Message.findById(message._id)
+          .populate('sender', 'username profilePicture')
+          .populate('recipient', 'username profilePicture');
 
         // Update conversation's last message and activity
-        await Conversation.findByIdAndUpdate(conversationId, {
-          lastMessage: newMessage._id,
-          lastActivity: new Date()
+        conversation.lastMessage = message._id;
+        conversation.lastActivity = new Date();
+        await conversation.save();
+
+        // Emit the message to all participants in the conversation
+        io.of("/api").to(conversationId).emit('message:receive', {
+          conversationId,
+          message: populatedMessage
         });
 
-        // Emit the message to all users in the conversation
-        io.of('/api').to(conversationId).emit('message:receive', {
-          conversationId,
-          message: newMessage
-        });
+        // Notify the sender that the message was sent successfully
+        socket.emit('message:sent', { messageId: message._id });
       } catch (error) {
         console.error('Message sending error:', error);
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
 
+    // Join conversation room
+    socket.on('joinConversation', (conversationId) => {
+      socket.join(conversationId);
+    });
+
+    // Leave conversation room
+    socket.on('leaveConversation', (conversationId) => {
+      socket.leave(conversationId);
+    });
+
     // Handle typing indicators
-    socket.on('user:typing', (data) => {
+    socket.on('typing', async (data) => {
       const { conversationId, isTyping } = data;
-      socket.broadcast.to(conversationId).emit('user:typing', {
+      socket.to(conversationId).emit('user:typing', {
         userId: socket.userId,
         isTyping
       });
     });
 
-    // Handle joining a conversation
-    socket.on('joinConversation', (conversationId) => {
-      socket.join(conversationId);
-      console.log(`User ${socket.userId} joined conversation ${conversationId}`);
-    });
-
-    // Handle leaving a conversation
-    socket.on('leaveConversation', (conversationId) => {
-      socket.leave(conversationId);
-      console.log(`User ${socket.userId} left conversation ${conversationId}`);
-    });
-
-    // Handle user going offline
-    socket.on('userOffline', async (userId) => {
-      if (userId) {
-        connectedUsers.delete(socket.id);
-        try {
-          const user = await User.findById(userId);
-          if (user) {
-            user.isOnline = false;
-            user.lastSeen = new Date();
-            await user.save();
-            socket.broadcast.emit('updateUserStatus', { userId, isOnline: false });
-          }
-        } catch (error) {
-          console.error('User status update error:', error);
-        }
-      }
-    });
-
     // Handle disconnection
     socket.on('disconnect', async () => {
       console.log('Client disconnected:', socket.id);
-
-      // Find and update user's online status
       if (socket.userId) {
         connectedUsers.delete(socket.userId);
+        
         try {
           const user = await User.findById(socket.userId);
           if (user) {
             user.isOnline = false;
             user.lastSeen = new Date();
             await user.save();
-            socket.broadcast.emit('updateUserStatus', { userId: socket.userId, isOnline: false });
+
+            // Notify others about user's offline status
+            io.of("/api").emit('updateUserStatus', { userId: socket.userId, isOnline: false });
           }
         } catch (error) {
           console.error('User status update error:', error);
         }
       }
-    });
-
-    // Handle errors
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
     });
   });
 };
