@@ -4,11 +4,12 @@ import { useSocket } from '../../contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Send, Image, Smile, MoreVertical, Paperclip, X, Bell } from 'lucide-react';
-import api from '../../utils/api';
+import api, { chatAPI } from '../../utils/api';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import ChatOptionsMenu from './ChatOptionsMenu';
 
-const ChatWindow = ({ conversation }) => {
+const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -211,6 +212,31 @@ const ChatWindow = ({ conversation }) => {
     navigate(`/profile/${otherUser._id}`);
   };
 
+  // Add delete handlers for chat and history
+  const handleDeleteHistory = async () => {
+    try {
+      await chatAPI.deleteChatHistory(conversation._id);
+      toast.success('Chat history deleted');
+      setMessages([]);
+      if (onDeleteHistory) onDeleteHistory(conversation._id);
+    } catch (error) {
+      console.error('Error deleting chat history:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete chat history');
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    try {
+      await chatAPI.deleteConversation(conversation._id);
+      toast.success('Chat deleted successfully');
+      if (onDeleteChat) onDeleteChat(conversation._id);
+      // Optionally, navigate away or clear chat window
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete chat');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Chat Header */}
@@ -238,9 +264,11 @@ const ChatWindow = ({ conversation }) => {
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </div>
           )}
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <MoreVertical className="w-5 h-5 text-gray-600" />
-          </button>
+          <ChatOptionsMenu
+            conversationId={conversation._id}
+            onDeleteHistory={handleDeleteHistory}
+            onDeleteChat={handleDeleteChat}
+          />
         </div>
       </div>
 
