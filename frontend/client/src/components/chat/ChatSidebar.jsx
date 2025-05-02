@@ -148,7 +148,7 @@ const ChatSidebar = ({ onSelectConversation }) => {
   });
 
   return (
-    <div className="flex flex-col h-full bg-gray-100 w-80 border-r border-gray-200">
+    <div className="flex flex-col h-full bg-white">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -156,27 +156,27 @@ const ChatSidebar = ({ onSelectConversation }) => {
               <img
                 src={user.profilePic}
                 alt="Profile"
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="text-gray-500 text-sm">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
+                <span className="text-gray-500 text-sm font-semibold">
                   {user?.username?.charAt(0)?.toUpperCase()}
                 </span>
               </div>
             )}
-            <span className="font-semibold">{user?.username}</span>
+            <span className="font-semibold text-gray-800">{user?.username}</span>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsNewChatModalOpen(true)}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <MessageSquarePlus className="w-5 h-5 text-gray-600" />
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <LogOut className="w-5 h-5 text-gray-600" />
             </button>
@@ -189,7 +189,7 @@ const ChatSidebar = ({ onSelectConversation }) => {
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-gray-200 focus:outline-none focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
           />
         </div>
       </div>
@@ -204,29 +204,29 @@ const ChatSidebar = ({ onSelectConversation }) => {
             <p className="text-gray-500">No conversations yet</p>
             <button
               onClick={() => setIsNewChatModalOpen(true)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
             >
               Start New Chat
             </button>
           </div>
         ) : (
-          filteredConversations.map((conversation) => {
+          conversations.map((conversation) => {
             const otherUser = conversation.participants.find(p => p._id !== user._id);
             return (
               <div
                 key={conversation._id}
                 onClick={() => onSelectConversation(conversation)}
-                className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
               >
                 <img
                   src={otherUser?.profilePicture || '/default-avatar.png'}
                   alt={otherUser?.username}
-                  className="w-12 h-12 rounded-full mr-4"
+                  className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-gray-200"
                 />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{otherUser?.username}</h3>
-                    <span className="text-xs text-gray-500">
+                    <h3 className="font-semibold text-gray-800 truncate">{otherUser?.username}</h3>
+                    <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
                       {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>

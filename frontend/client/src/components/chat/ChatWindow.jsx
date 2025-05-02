@@ -150,27 +150,27 @@ const ChatWindow = ({ conversation }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-100">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Chat Header */}
-      <div className="flex items-center p-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center p-4 border-b border-gray-200 bg-white shadow-sm">
         <img
           src={otherUser?.profilePicture || '/default-avatar.png'}
           alt={otherUser?.username}
-          className="w-10 h-10 rounded-full mr-4 object-cover"
+          className="w-10 h-10 rounded-full mr-4 object-cover ring-2 ring-gray-200"
         />
         <div className="flex-1">
-          <h3 className="font-semibold">{otherUser?.username}</h3>
+          <h3 className="font-semibold text-gray-800">{otherUser?.username}</h3>
           {isTyping && (
             <p className="text-sm text-gray-500">typing...</p>
           )}
         </div>
-        <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <MoreVertical className="w-5 h-5 text-gray-600" />
         </button>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -193,10 +193,10 @@ const ChatWindow = ({ conversation }) => {
               className={`flex ${message.sender === user._id ? 'justify-end' : 'justify-start'} mb-4`}
             >
               <div
-                className={`max-w-[70%] rounded-lg p-3 ${
+                className={`max-w-[70%] rounded-2xl p-4 ${
                   message.sender === user._id
-                    ? 'bg-blue-600 text-white rounded-tr-none'
-                    : 'bg-white text-gray-800 rounded-tl-none'
+                    ? 'bg-blue-600 text-white rounded-tr-none shadow-sm'
+                    : 'bg-white text-gray-800 rounded-tl-none shadow-sm'
                 }`}
               >
                 {message.media && (
@@ -207,7 +207,7 @@ const ChatWindow = ({ conversation }) => {
                   />
                 )}
                 <p className="text-sm">{message.content}</p>
-                <span className="text-xs opacity-70 mt-1 block">
+                <span className={`text-xs mt-1 block ${message.sender === user._id ? 'text-blue-100' : 'text-gray-500'}`}>
                   {new Date(message.createdAt).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit'
@@ -221,20 +221,20 @@ const ChatWindow = ({ conversation }) => {
       </div>
 
       {/* Message Input */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
+      <div className="p-4 border-t border-gray-200 bg-white">
         {previewUrl && (
           <div className="relative mb-4">
             <img
               src={previewUrl}
               alt="Preview"
-              className="max-w-xs rounded-lg"
+              className="max-w-xs rounded-lg shadow-sm"
             />
             <button
               onClick={() => {
                 setSelectedFile(null);
                 setPreviewUrl(null);
               }}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1"
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -251,7 +251,7 @@ const ChatWindow = ({ conversation }) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <Paperclip className="w-5 h-5 text-gray-600" />
           </button>
@@ -263,13 +263,13 @@ const ChatWindow = ({ conversation }) => {
               handleTyping();
             }}
             placeholder="Type a message"
-            className="flex-1 px-4 py-2 bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-2 bg-gray-50 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
           />
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <Smile className="w-5 h-5 text-gray-600" />
             </button>
@@ -285,7 +285,7 @@ const ChatWindow = ({ conversation }) => {
           </div>
           <button
             type="submit"
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-sm"
           >
             <Send className="w-5 h-5" />
           </button>
