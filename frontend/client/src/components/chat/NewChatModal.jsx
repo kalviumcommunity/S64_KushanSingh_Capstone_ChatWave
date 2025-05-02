@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
-import api from '../../utils/api';
+import { chatAPI } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 
 const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
@@ -18,13 +18,9 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
 
       setLoading(true);
       try {
-        const response = await api.get('/users/search', {
-          params: { query: searchQuery }
-        });
+        const response = await chatAPI.searchUsers(searchQuery);
         
-        if (response.data && Array.isArray(response.data)) {
-          setUsers(response.data);
-        } else if (response.data && Array.isArray(response.data.users)) {
+        if (response.data && response.data.success && Array.isArray(response.data.users)) {
           setUsers(response.data.users);
         } else {
           console.error('Invalid response format:', response.data);

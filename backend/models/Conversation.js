@@ -11,6 +11,14 @@ const conversationSchema = new mongoose.Schema(
       },
     ],
 
+    // Users who have deleted this conversation
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     // Flag to check if it's a group chat
     isGroup: {
       type: Boolean,

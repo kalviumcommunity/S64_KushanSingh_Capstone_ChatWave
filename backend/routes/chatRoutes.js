@@ -5,7 +5,10 @@ const {
   getMessages,
   markMessagesAsRead,
   deleteMessage,
-  searchUsers
+  searchUsers,
+  createOrGetConversation,
+  deleteChatHistory,
+  deleteConversation
 } = require('../controllers/chatController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -14,6 +17,9 @@ router.use(authMiddleware.auth);
 
 // Conversation routes
 router.get('/conversations', getConversations);
+router.post('/conversation', createOrGetConversation);
+router.delete('/conversation/:conversationId/history', deleteChatHistory);
+router.delete('/conversation/:conversationId', deleteConversation);
 
 // Message routes
 router.get('/messages/:conversationId', getMessages);

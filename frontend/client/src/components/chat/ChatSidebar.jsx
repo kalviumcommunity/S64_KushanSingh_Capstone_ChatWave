@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
-import api from '../../utils/api';
+import { chatAPI } from '../../utils/api';
 import { Search, LogOut, MessageSquarePlus } from 'lucide-react';
 import NewChatModal from './NewChatModal';
+import ChatOptionsMenu from './ChatOptionsMenu';
 
 const ChatSidebar = ({ onSelectConversation }) => {
   const [conversations, setConversations] = useState([]);
@@ -21,9 +22,9 @@ const ChatSidebar = ({ onSelectConversation }) => {
       let retries = 3;
       while (retries > 0) {
         try {
-          const response = await api.get('/conversations');
-          if (Array.isArray(response.data)) {
-            setConversations(response.data);
+          const response = await chatAPI.getConversations();
+          if (Array.isArray(response.data.conversations)) {
+            setConversations(response.data.conversations);
             setLoading(false);
             return;
           } else {
@@ -102,29 +103,20 @@ const ChatSidebar = ({ onSelectConversation }) => {
 
   const handleNewChat = async (selectedUser) => {
     try {
-      // Check if conversation already exists
-      const existingConversation = conversations.find(conv => 
-        !conv.isGroup && conv.participants.some(p => p._id === selectedUser._id)
-      );
-
-      if (existingConversation) {
-        onSelectConversation(existingConversation);
+      const response = await chatAPI.createOrGetConversation(selectedUser._id);
+      
+      if (response.data && response.data.conversation) {
+        const conversation = response.data.conversation;
+        
+        // Check if conversation already exists in the list
+        const exists = conversations.some(conv => conv._id === conversation._id);
+        if (!exists) {
+          setConversations(prev => [conversation, ...prev]);
+        }
+        
+        onSelectConversation(conversation);
         setIsNewChatModalOpen(false);
-        return;
-      }
-
-      // Create new conversation with both users
-      const response = await api.post('/conversations', {
-        participants: [user._id, selectedUser._id],
-        isGroup: false
-      });
-
-      if (response.data && response.data._id) {
-        const newConversation = response.data;
-        setConversations(prev => [newConversation, ...prev]);
-        onSelectConversation(newConversation);
-        setIsNewChatModalOpen(false);
-        toast.success('New chat started');
+        toast.success('Chat started');
       } else {
         throw new Error('Invalid response from server');
       }
@@ -139,6 +131,29 @@ const ChatSidebar = ({ onSelectConversation }) => {
       } else {
         toast.error('Failed to start new chat. Please try again.');
       }
+    }
+  };
+
+  const handleDeleteHistory = (conversationId) => {
+    setConversations(prev => prev.map(conv => {
+      if (conv._id === conversationId) {
+        return { ...conv, lastMessage: null };
+      }
+      return conv;
+    }));
+  };
+
+  const handleDeleteChat = async (conversationId) => {
+    try {
+      await chatAPI.deleteConversation(conversationId);
+      // Remove the conversation from the local state
+      setConversations(prev => prev.filter(conv => conv._id !== conversationId));
+      // Clear the selected conversation if it was the deleted one
+      onSelectConversation(null);
+      toast.success('Chat deleted successfully');
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete chat');
     }
   };
 
@@ -218,25 +233,34 @@ const ChatSidebar = ({ onSelectConversation }) => {
             return (
               <div
                 key={conversation._id}
-                onClick={() => onSelectConversation(conversation)}
                 className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
               >
-                <img
-                  src={otherUser?.profilePic || '/default-avatar.png'}
-                  alt={otherUser?.username}
-                  className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-gray-200"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-800 truncate">{otherUser?.username}</h3>
-                    <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                      {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                <div
+                  className="flex-1 flex items-center"
+                  onClick={() => onSelectConversation(conversation)}
+                >
+                  <img
+                    src={otherUser?.profilePic || '/default-avatar.png'}
+                    alt={otherUser?.username}
+                    className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-gray-200"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-semibold text-gray-800 truncate">{otherUser?.username}</h3>
+                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                        {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">
+                      {conversation.lastMessage?.content || 'No messages yet'}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500 truncate">
-                    {conversation.lastMessage?.content || 'No messages yet'}
-                  </p>
                 </div>
+                <ChatOptionsMenu
+                  conversationId={conversation._id}
+                  onDeleteHistory={() => handleDeleteHistory(conversation._id)}
+                  onDeleteChat={() => handleDeleteChat(conversation._id)}
+                />
               </div>
             );
           })

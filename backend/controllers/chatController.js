@@ -7,7 +7,8 @@ const mongoose = require('mongoose');
 const getConversations = async (req, res) => {
   try {
     const conversations = await Conversation.find({
-      participants: req.user._id
+      participants: req.user._id,
+      deletedBy: { $ne: req.user._id }
     })
       .populate('participants', '-password')
       .populate('lastMessage')
@@ -184,10 +185,153 @@ const searchUsers = async (req, res) => {
   }
 };
 
+// @desc    Create or get conversation between two users
+// @route   POST /api/chat/conversation
+// @access  Private
+const createOrGetConversation = async (req, res) => {
+  try {
+    const { participantId } = req.body;
+
+    // Validate participantId
+    if (!mongoose.Types.ObjectId.isValid(participantId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid participant ID'
+      });
+    }
+
+    // Check if participant exists
+    const participant = await User.findById(participantId);
+    if (!participant) {
+      return res.status(404).json({
+        success: false,
+        message: 'Participant not found'
+      });
+    }
+
+    // Check if conversation already exists between these two users
+    let conversation = await Conversation.findOne({
+      participants: { $all: [req.user._id, participantId] },
+      isGroup: false
+    }).populate('participants', '-password');
+
+    // If conversation doesn't exist, create a new one
+    if (!conversation) {
+      conversation = await Conversation.create({
+        participants: [req.user._id, participantId],
+        isGroup: false
+      });
+      conversation = await conversation.populate('participants', '-password');
+    }
+
+    res.status(200).json({
+      success: true,
+      conversation
+    });
+  } catch (error) {
+    console.error('Error creating/getting conversation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete chat history for a conversation
+// @route   DELETE /api/chat/conversation/:conversationId/history
+// @access  Private
+const deleteChatHistory = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    // Check if conversation exists and user is a participant
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found'
+      });
+    }
+
+    if (!conversation.participants.includes(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this conversation'
+      });
+    }
+
+    // Delete all messages in the conversation
+    await Message.deleteMany({ conversation: conversationId });
+
+    res.status(200).json({
+      success: true,
+      message: 'Chat history deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting chat history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete conversation for a user
+// @route   DELETE /api/chat/conversation/:conversationId
+// @access  Private
+const deleteConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    // Check if conversation exists and user is a participant
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found'
+      });
+    }
+
+    if (!conversation.participants.includes(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this conversation'
+      });
+    }
+
+    // Add user to deletedBy array if it doesn't exist
+    if (!conversation.deletedBy) {
+      conversation.deletedBy = [];
+    }
+
+    if (!conversation.deletedBy.includes(req.user._id)) {
+      conversation.deletedBy.push(req.user._id);
+      await conversation.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Conversation deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getConversations,
   getMessages,
   markMessagesAsRead,
   deleteMessage,
-  searchUsers
+  searchUsers,
+  createOrGetConversation,
+  deleteChatHistory,
+  deleteConversation
 }; 

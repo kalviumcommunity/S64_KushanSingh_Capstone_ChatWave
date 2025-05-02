@@ -38,4 +38,23 @@ api.interceptors.response.use(
   }
 );
 
+// Chat API endpoints
+export const chatAPI = {
+  getConversations: () => api.get('/chat/conversations'),
+  getMessages: (conversationId, page = 1, limit = 20) => 
+    api.get(`/chat/messages/${conversationId}`, { params: { page, limit } }),
+  markMessagesAsRead: (messageIds) => 
+    api.put('/chat/messages/read', { messageIds }),
+  deleteMessage: (messageId) => 
+    api.delete(`/chat/messages/${messageId}`),
+  searchUsers: (query) => 
+    api.get('/chat/users/search', { params: { query } }),
+  createOrGetConversation: (participantId) => 
+    api.post('/chat/conversation', { participantId }),
+  deleteChatHistory: (conversationId) => 
+    api.delete(`/chat/conversation/${conversationId}/history`),
+  deleteConversation: (conversationId) => 
+    api.delete(`/chat/conversation/${conversationId}`)
+};
+
 export default api;
