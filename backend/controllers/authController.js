@@ -83,7 +83,7 @@ const login = async (req, res) => {
     }
 
     // Check if password matches
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
       return res.status(401).json({
@@ -113,9 +113,10 @@ const login = async (req, res) => {
       token
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Server error during login',
       error: error.message
     });
   }
