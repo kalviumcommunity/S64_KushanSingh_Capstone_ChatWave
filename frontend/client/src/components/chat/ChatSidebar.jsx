@@ -82,27 +82,59 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('message:receive', (data) => {
+    const handleNewMessage = (data) => {
+      console.log('Received new message:', data);
       setConversations(prevConversations => {
-        const updatedConversations = [...prevConversations];
-        const conversationIndex = updatedConversations.findIndex(
+        // Find the conversation that needs to be updated
+        const conversationIndex = prevConversations.findIndex(
           conv => conv._id === data.conversationId
         );
 
-        if (conversationIndex !== -1) {
-          const conversation = updatedConversations[conversationIndex];
-          updatedConversations.splice(conversationIndex, 1);
-          updatedConversations.unshift(conversation);
+        if (conversationIndex === -1) {
+          // If conversation not found, fetch all conversations
+          fetchConversations();
+          return prevConversations;
         }
+
+        // Create a new array to avoid mutating state
+        const updatedConversations = [...prevConversations];
+        const conversation = data.conversation || updatedConversations[conversationIndex];
+
+        // Remove the conversation from its current position
+        updatedConversations.splice(conversationIndex, 1);
+        // Add it to the beginning of the array
+        updatedConversations.unshift(conversation);
 
         return updatedConversations;
       });
-    });
+    };
+
+    const handleMessageRead = (data) => {
+      console.log('Message read update:', data);
+      setConversations(prevConversations => {
+        return prevConversations.map(conv => {
+          if (conv._id === data.conversationId) {
+            return data.conversation || {
+              ...conv,
+              lastMessage: {
+                ...conv.lastMessage,
+                readBy: [...(conv.lastMessage?.readBy || []), data.userId]
+              }
+            };
+          }
+          return conv;
+        });
+      });
+    };
+
+    socket.on('message:receive', handleNewMessage);
+    socket.on('message:read', handleMessageRead);
 
     return () => {
-      socket.off('message:receive');
+      socket.off('message:receive', handleNewMessage);
+      socket.off('message:read', handleMessageRead);
     };
-  }, [socket, setConversations]);
+  }, [socket]);
 
   const handleLogout = async () => {
     try {
@@ -135,6 +167,17 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
   };
 
   const handleSelectConversation = (conversation) => {
+    // Mark messages as read when selecting a conversation
+    if (conversation.lastMessage && 
+        conversation.lastMessage.sender._id !== user._id && 
+        !conversation.lastMessage.readBy?.includes(user._id)) {
+      socket.emit('message:read', {
+        messageId: conversation.lastMessage._id,
+        userId: user._id,
+        conversationId: conversation._id
+      });
+    }
+
     onSelectConversation(conversation);
     setConversations(prev => {
       const filtered = prev.filter(c => c._id !== conversation._id);
@@ -217,25 +260,44 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
         ) : (
           filteredConversations.map((conversation) => {
             const otherUser = conversation.participants.find(p => p._id !== user._id);
+            const hasUnreadMessages = conversation.lastMessage && 
+              conversation.lastMessage.sender._id !== user._id && 
+              !conversation.lastMessage.readBy?.includes(user._id);
+
             return (
               <div
                 key={conversation._id}
-                className="flex items-center p-4 mb-2 bg-white rounded-xl shadow transition-all duration-200 hover:shadow-md hover:bg-gray-50 cursor-pointer border border-gray-100"
+                className={`flex items-center p-4 mb-2 bg-white rounded-xl shadow transition-all duration-200 hover:shadow-md hover:bg-gray-50 cursor-pointer border border-gray-100 ${
+                  hasUnreadMessages ? 'bg-blue-50' : ''
+                }`}
                 onClick={() => handleSelectConversation(conversation)}
               >
-                <img
-                  src={otherUser?.profilePic || '/default-avatar.png'}
-                  alt={otherUser?.username}
-                  className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-blue-400 shadow-sm"
-                />
+                <div className="relative">
+                  <img
+                    src={otherUser?.profilePic || '/default-avatar.png'}
+                    alt={otherUser?.username}
+                    className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-blue-400 shadow-sm"
+                  />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-semibold text-gray-900 truncate text-base">{otherUser?.username}</h3>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-2 font-medium">
-                      {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <h3 className={`font-semibold text-gray-900 truncate text-base ${
+                      hasUnreadMessages ? 'font-bold' : ''
+                    }`}>
+                      {otherUser?.username}
+                    </h3>
+                    <span className={`text-xs whitespace-nowrap ml-2 font-medium ${
+                      hasUnreadMessages ? 'text-blue-600' : 'text-gray-400'
+                    }`}>
+                      {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500 truncate font-light">
+                  <p className={`text-sm truncate font-light ${
+                    hasUnreadMessages ? 'text-gray-900 font-medium' : 'text-gray-500'
+                  }`}>
                     {conversation.lastMessage?.content || 'No messages yet'}
                   </p>
                 </div>

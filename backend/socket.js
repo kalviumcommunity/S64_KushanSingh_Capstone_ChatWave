@@ -85,45 +85,86 @@ const socketIO = (server) => {
           conversation: conversationId,
           sender: senderId,
           content,
-          media
+          media,
+          readBy: [senderId] // Mark as read by sender
         });
 
         await message.save();
 
+        // Update conversation's lastMessage and lastActivity
+        await Conversation.findByIdAndUpdate(conversationId, {
+          lastMessage: message._id,
+          lastActivity: new Date()
+        });
+
         // Populate sender details
         await message.populate('sender', 'username profilePic');
+
+        // Get the updated conversation
+        const conversation = await Conversation.findById(conversationId)
+          .populate('participants', 'username email profilePic')
+          .populate('lastMessage');
 
         // Emit to all users in the conversation
         socket.to(conversationId).emit('message:receive', {
           conversationId,
-          message
+          message,
+          conversation
         });
 
         // Emit notification to other users
-        const conversation = await message.populate('conversation');
-        const otherUsers = conversation.conversation.participants.filter(
-          p => p.toString() !== senderId
+        const otherUsers = conversation.participants.filter(
+          p => p._id.toString() !== senderId
         );
 
-        otherUsers.forEach(userId => {
-        const recipientSocket = Array.from(io.sockets.sockets.values())
-            .find(s => s.userId === userId.toString());
-        
-        if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
-          recipientSocket.emit('newMessageNotification', {
-            conversationId,
+        otherUsers.forEach(user => {
+          const recipientSocket = Array.from(io.sockets.sockets.values())
+            .find(s => s.userId === user._id.toString());
+          
+          if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
+            recipientSocket.emit('newMessageNotification', {
+              conversationId,
               message: {
                 content,
                 media
               },
               sender: message.sender
-          });
-        }
+            });
+          }
         });
 
       } catch (error) {
         console.error('Error handling message:', error);
         socket.emit('error', { message: 'Failed to send message' });
+      }
+    });
+
+    // Handle message read status
+    socket.on('message:read', async (data) => {
+      try {
+        const { messageId, userId, conversationId } = data;
+        
+        // Update message read status
+        await Message.findByIdAndUpdate(messageId, {
+          $addToSet: { readBy: userId }
+        });
+
+        // Get the updated conversation
+        const conversation = await Conversation.findById(conversationId)
+          .populate('participants', 'username email profilePic')
+          .populate('lastMessage');
+
+        // Emit read status to all users in the conversation
+        socket.to(conversationId).emit('message:read', {
+          conversationId,
+          messageId,
+          userId,
+          conversation
+        });
+
+      } catch (error) {
+        console.error('Error handling message read status:', error);
+        socket.emit('error', { message: 'Failed to update message read status' });
       }
     });
 
