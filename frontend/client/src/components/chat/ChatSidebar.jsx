@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -178,17 +178,22 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
       });
     }
 
-    onSelectConversation(conversation);
+    // Update conversations list and selected conversation
     setConversations(prev => {
       const filtered = prev.filter(c => c._id !== conversation._id);
       return [conversation, ...filtered];
     });
+
+    onSelectConversation(conversation);
   };
 
-  const filteredConversations = conversations.filter(conversation => {
-    const otherUser = conversation.participants.find(p => p._id !== user._id);
-    return otherUser?.username.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  // Memoize filtered conversations to prevent unnecessary re-renders
+  const filteredConversations = useMemo(() => {
+    return conversations.filter(conversation => {
+      const otherUser = conversation.participants.find(p => p._id !== user._id);
+      return otherUser?.username.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [conversations, searchQuery, user._id]);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -196,17 +201,17 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div 
-              className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+              className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-all duration-150 ease-in-out"
               onClick={() => navigate('/profile')}
             >
               {user?.profilePic ? (
                 <img
                   src={user.profilePic}
                   alt="Profile"
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-400 shadow-sm"
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-400 shadow-sm transition-transform duration-150 ease-in-out hover:scale-105"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-blue-400 shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-blue-400 shadow-sm transition-transform duration-150 ease-in-out hover:scale-105">
                   <span className="text-gray-500 text-sm font-semibold">
                     {user?.username?.charAt(0)?.toUpperCase()}
                   </span>
@@ -218,13 +223,13 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
           <div className="flex items-center space-x-2">
             <button
               onClick={onOpenNewChat}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all duration-150 ease-in-out hover:scale-105"
             >
               <MessageSquarePlus className="w-5 h-5 text-gray-600" />
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all duration-150 ease-in-out hover:scale-105"
             >
               <LogOut className="w-5 h-5 text-gray-600" />
             </button>
@@ -237,11 +242,11 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+            className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-150 ease-in-out"
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto pb-2">
+      <div className="flex-1 overflow-y-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -252,7 +257,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
             <p className="text-gray-500">No conversations yet</p>
             <button
               onClick={onOpenNewChat}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-150 ease-in-out hover:scale-105 shadow-sm"
             >
               Start New Chat
             </button>
@@ -267,7 +272,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
             return (
               <div
                 key={conversation._id}
-                className={`flex items-center p-4 mb-2 bg-white rounded-xl shadow transition-all duration-200 hover:shadow-md hover:bg-gray-50 cursor-pointer border border-gray-100 ${
+                className={`flex items-center p-4 mb-2 bg-white rounded-xl shadow-sm transition-all duration-150 ease-in-out hover:shadow-md hover:bg-gray-50 cursor-pointer border border-gray-100 ${
                   hasUnreadMessages ? 'bg-blue-50' : ''
                 }`}
                 onClick={() => handleSelectConversation(conversation)}
@@ -276,17 +281,17 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
                   <img
                     src={otherUser?.profilePic || '/default-avatar.png'}
                     alt={otherUser?.username}
-                    className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-blue-400 shadow-sm"
+                    className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-blue-400 shadow-sm transition-transform duration-150 ease-in-out hover:scale-105"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
-                    <h3 className={`font-semibold text-gray-900 truncate text-base ${
+                    <h3 className={`font-semibold text-gray-900 truncate text-base transition-all duration-150 ease-in-out ${
                       hasUnreadMessages ? 'font-bold' : ''
                     }`}>
                       {otherUser?.username}
                     </h3>
-                    <span className={`text-xs whitespace-nowrap ml-2 font-medium ${
+                    <span className={`text-xs whitespace-nowrap ml-2 font-medium transition-all duration-150 ease-in-out ${
                       hasUnreadMessages ? 'text-blue-600' : 'text-gray-400'
                     }`}>
                       {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { 
@@ -295,7 +300,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
                       })}
                     </span>
                   </div>
-                  <p className={`text-sm truncate font-light ${
+                  <p className={`text-sm truncate font-light transition-all duration-150 ease-in-out ${
                     hasUnreadMessages ? 'text-gray-900 font-medium' : 'text-gray-500'
                   }`}>
                     {conversation.lastMessage?.content || 'No messages yet'}
