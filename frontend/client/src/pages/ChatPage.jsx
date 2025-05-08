@@ -24,27 +24,50 @@ const ChatPage = () => {
   // Handler for when a user is selected in the modal
   const handleSelectUser = async (selectedUser) => {
     try {
+      console.log('Creating conversation with user:', selectedUser);
       const response = await chatAPI.createOrGetConversation(selectedUser._id);
-      if (response.data && response.data.conversation) {
+      console.log('Server response:', response);
+      
+      if (response.data && response.data.success && response.data.conversation) {
         const conversation = response.data.conversation;
+        console.log('Created conversation:', conversation);
+        
         // Add to conversations if not already present
-        const exists = conversations.some(conv => conv._id === conversation._id);
-        if (!exists) {
-          setConversations(prev => [conversation, ...prev]);
-        }
+        setConversations(prev => {
+          const exists = prev.some(conv => conv._id === conversation._id);
+          if (!exists) {
+            return [conversation, ...prev];
+          }
+          return prev.map(conv => 
+            conv._id === conversation._id ? conversation : conv
+          );
+        });
+        
         setSelectedConversation(conversation);
         setIsNewChatModalOpen(false);
         toast.success('Chat started');
       } else {
+        console.error('Invalid response format:', response.data);
         throw new Error('Invalid response from server');
       }
     } catch (error) {
       console.error('Error starting new chat:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+      
       if (error.response) {
         if (error.response.status === 401) {
           toast.error('Please login again to continue');
         } else {
-          toast.error(error.response.data.message || 'Failed to start new chat');
+          toast.error(error.response.data?.message || 'Failed to start new chat');
         }
       } else {
         toast.error('Failed to start new chat. Please try again.');

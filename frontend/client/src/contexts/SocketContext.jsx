@@ -19,7 +19,8 @@ export const SocketProvider = ({ children }) => {
     }
 
     console.log('Connecting to socket server...');
-    const newSocket = io(import.meta.env.VITE_API_URL, {
+    const socketUrl = import.meta.env.VITE_API_URL.replace(/\/api$/, '');
+    const newSocket = io(socketUrl, {
       withCredentials: true,
       auth: {
         token: user.token

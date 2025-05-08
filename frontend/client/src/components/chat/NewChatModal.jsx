@@ -57,17 +57,21 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
     };
   }, [searchQuery]);
 
+  const handleSelectUser = (user) => {
+    onSelectUser(user);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-all duration-200">
+      <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl border border-gray-100 transition-all duration-200">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold">New Chat</h2>
+          <h2 className="text-xl font-semibold text-gray-800">New Chat</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className="p-2 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -83,14 +87,14 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
               placeholder="Search by username or email"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm"
               aria-label="Search users"
             />
           </div>
         </div>
 
         {/* Users List */}
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-gray-100">
           {loading ? (
             <div className="flex items-center justify-center p-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -105,23 +109,24 @@ const NewChatModal = ({ isOpen, onClose, onSelectUser }) => {
             users.map((user) => (
               <div
                 key={user._id}
-                onClick={() => onSelectUser(user)}
-                className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                onClick={() => handleSelectUser(user)}
+                className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-all duration-150 rounded-xl mb-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 role="button"
                 tabIndex={0}
+                aria-label={`Start chat with ${user.username}`}
               >
                 <img
                   src={user.profilePic || '/default-avatar.png'}
                   alt={user.username}
-                  className="w-12 h-12 rounded-full mr-4 object-cover"
+                  className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-blue-400 shadow-sm"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = '/default-avatar.png';
                   }}
                 />
                 <div>
-                  <h3 className="font-semibold">{user.username}</h3>
-                  <p className="text-sm text-gray-500">{user.email}</p>
+                  <h3 className="font-semibold text-gray-800">{user.username}</h3>
+                  <p className="text-sm text-gray-500 font-light">{user.email}</p>
                 </div>
               </div>
             ))

@@ -18,6 +18,7 @@ const RegisterForm = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const navigate = useNavigate();
   const { register } = useAuth();
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -97,23 +98,76 @@ const RegisterForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Profile Picture Upload */}
-      <div className="flex flex-col items-center space-y-4">
-        <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-gray-300">
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl max-w-md mx-auto p-8 mt-8 border border-gray-100 transition-all duration-200">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Register</h2>
+      <div className="mb-4">
+        <label htmlFor="username" className="block text-gray-700 font-semibold mb-2">Username</label>
+        <input
+          id="username"
+          type="text"
+          name="username"
+          value={formData.username}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Username"
+          required
+        />
+      </div>
+      <div className="mb-4">
+        <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">Email</label>
+        <input
+          id="email"
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Email"
+          required
+        />
+      </div>
+      <div className="mb-6">
+        <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">Password</label>
+        <input
+          id="password"
+          type={showPassword ? 'text' : 'password'}
+          name="password"
+          value={formData.password}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Password"
+          required
+        />
+      </div>
+      <div className="mb-4">
+        <label htmlFor="confirmPassword" className="block text-gray-700 font-semibold mb-2">Confirm Password</label>
+        <input
+          id="confirmPassword"
+          type={showPassword ? 'text' : 'password'}
+          name="confirmPassword"
+          value={formData.confirmPassword}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Confirm Password"
+          required
+        />
+      </div>
+      {error && <div className="mb-4 text-red-500 text-sm text-center">{error}</div>}
+      <div className="flex flex-col items-center space-y-4 mb-6">
+        <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-blue-200 shadow-md bg-gray-100 flex items-center justify-center">
           {previewUrl ? (
             <img
               src={previewUrl}
               alt="Profile preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-full ring-2 ring-blue-400 shadow"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <Image className="w-12 h-12 text-gray-400" />
+              <Image className="w-16 h-16 text-gray-400" />
             </div>
           )}
         </div>
-        <label className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+        <label className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
           <input
             type="file"
             accept="image/*"
@@ -123,111 +177,12 @@ const RegisterForm = () => {
           <span>Choose Profile Picture</span>
         </label>
       </div>
-
-      <div>
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-          Username
-        </label>
-        <div className="mt-1 relative rounded-md shadow-sm">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <User className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="johndoe"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email
-        </label>
-        <div className="mt-1 relative rounded-md shadow-sm">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Mail className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="you@example.com"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password
-        </label>
-        <div className="mt-1 relative rounded-md shadow-sm">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Lock className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            minLength={6}
-            className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="••••••••"
-          />
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-500 focus:outline-none"
-            >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-          Confirm Password
-        </label>
-        <div className="mt-1 relative rounded-md shadow-sm">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Lock className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            id="confirmPassword"
-            name="confirmPassword"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            required
-            minLength={6}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="••••••••"
-          />
-        </div>
-      </div>
-
       <div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow focus:outline-none focus:ring-2 focus:ring-blue-400"
+          aria-label="Register"
         >
           {loading ? (
             <div className="flex items-center">

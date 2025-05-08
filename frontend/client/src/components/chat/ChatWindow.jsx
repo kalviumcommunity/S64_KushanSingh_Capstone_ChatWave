@@ -23,6 +23,10 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
   const { user } = useAuth();
   const { socket, notifications, clearNotification } = useSocket();
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const wasAtBottomRef = useRef(true);
+  const prevMessagesLength = useRef(0);
+  const [autoScroll, setAutoScroll] = useState(true);
   const navigate = useNavigate();
 
   const otherUser = conversation.participants.find(p => p._id !== user._id);
@@ -62,7 +66,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
           }
           return prev;
         });
-        scrollToBottom();
         setHasNewMessage(false);
       }
     };
@@ -80,10 +83,6 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
       socket.off('user:typing');
     };
   }, [socket, conversation._id, otherUser._id]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -174,6 +173,10 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
       toast.error('Failed to send message');
       setMessages(prev => prev.filter(msg => !msg.isOptimistic));
     }
+
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const addEmoji = (emoji) => {
@@ -209,7 +212,7 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full w-full bg-gray-50">
       {/* Chat Header */}
       <div className="flex items-center p-4 border-b border-gray-200 bg-white shadow-sm">
         <div 
@@ -244,7 +247,10 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-gray-100"
+      >
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -267,21 +273,25 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
               className={`flex ${message.sender._id === user._id ? 'justify-end' : 'justify-start'} mb-4`}
             >
               <div
-                className={`max-w-[70%] rounded-2xl p-4 ${
-                  message.sender._id === user._id
-                    ? 'bg-blue-600 text-white rounded-tr-none shadow-sm'
-                    : 'bg-white text-gray-800 rounded-tl-none shadow-sm border border-gray-200'
-                }`}
+                className={`max-w-[70%] p-4 rounded-2xl shadow-md transition-all duration-200 \
+                  ${message.sender._id === user._id
+                    ? 'bg-blue-600 text-white rounded-tr-none'
+                    : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'}
+                  `}
+                aria-label={message.sender._id === user._id ? 'Sent message' : 'Received message'}
+                tabIndex={0}
               >
                 {message.media && (
                   <img
                     src={message.media}
                     alt="Message attachment"
-                    className="max-w-full h-auto rounded-lg mb-2"
+                    className="max-w-full h-auto rounded-lg mb-2 shadow-sm"
                   />
                 )}
-                <p className="text-sm">{message.content}</p>
-                <span className={`text-xs mt-1 block ${message.sender._id === user._id ? 'text-blue-100' : 'text-gray-500'}`}>
+                <p className="text-sm font-medium break-words">{message.content}</p>
+                <span className={`text-xs mt-2 block ${message.sender._id === user._id ? 'text-blue-100' : 'text-gray-500'}`}
+                  aria-label="Message timestamp"
+                >
                   {new Date(message.createdAt).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit'
@@ -314,18 +324,20 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
             </button>
           </div>
         )}
-        <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+        <form onSubmit={handleSendMessage} className="flex items-center space-x-2 mt-2">
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileSelect}
             accept="image/*"
             className="hidden"
+            aria-label="Attach image"
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Attach file"
           >
             <Paperclip className="w-5 h-5 text-gray-600" />
           </button>
@@ -337,18 +349,20 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
               handleTyping();
             }}
             placeholder="Type a message"
-            className="flex-1 px-4 py-2 bg-gray-50 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+            className="flex-1 px-4 py-2 bg-gray-50 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors shadow-sm"
+            aria-label="Type a message"
           />
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="Add emoji"
             >
               <Smile className="w-5 h-5 text-gray-600" />
             </button>
             {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-2">
+              <div className="absolute bottom-full right-0 mb-2 z-50 bg-white rounded-lg shadow-lg border border-gray-200">
                 <Picker
                   data={data}
                   onEmojiSelect={addEmoji}
@@ -359,7 +373,8 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
           </div>
           <button
             type="submit"
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-sm"
+            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Send message"
           >
             <Send className="w-5 h-5" />
           </button>

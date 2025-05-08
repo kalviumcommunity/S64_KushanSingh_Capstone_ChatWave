@@ -106,19 +106,19 @@ const socketIO = (server) => {
         );
 
         otherUsers.forEach(userId => {
-          const recipientSocket = Array.from(io.sockets.sockets.values())
+        const recipientSocket = Array.from(io.sockets.sockets.values())
             .find(s => s.userId === userId.toString());
-          
-          if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
-            recipientSocket.emit('newMessageNotification', {
-              conversationId,
+        
+        if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
+          recipientSocket.emit('newMessageNotification', {
+            conversationId,
               message: {
                 content,
                 media
               },
               sender: message.sender
-            });
-          }
+          });
+        }
         });
 
       } catch (error) {

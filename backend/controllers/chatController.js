@@ -209,24 +209,38 @@ const createOrGetConversation = async (req, res) => {
       });
     }
 
-    // Check if conversation already exists between these two users
+    // Try to find an existing conversation (even if soft-deleted)
     let conversation = await Conversation.findOne({
-      participants: { $all: [req.user._id, participantId] },
+      participants: { 
+        $all: [req.user._id, participantId],
+        $size: 2
+      },
       isGroup: false
-    }).populate('participants', '-password');
+    });
 
-    // If conversation doesn't exist, create a new one
     if (!conversation) {
-      conversation = await Conversation.create({
+      // Create new conversation
+      conversation = new Conversation({
         participants: [req.user._id, participantId],
         isGroup: false
       });
-      conversation = await conversation.populate('participants', '-password');
+      await conversation.save();
+    } else if (conversation.deletedBy.includes(req.user._id)) {
+      // If conversation was soft-deleted by this user, remove from deletedBy
+      conversation.deletedBy = conversation.deletedBy.filter(
+        id => id.toString() !== req.user._id.toString()
+      );
+      await conversation.save();
     }
+
+    // Populate the conversation with necessary data
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'username email profilePic')
+      .populate('lastMessage');
 
     res.status(200).json({
       success: true,
-      conversation
+      conversation: populatedConversation
     });
   } catch (error) {
     console.error('Error creating/getting conversation:', error);

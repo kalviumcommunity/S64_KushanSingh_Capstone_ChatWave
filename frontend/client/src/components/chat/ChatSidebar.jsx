@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { toast } from 'react-hot-toast';
 import { chatAPI } from '../../utils/api';
-import { Search, LogOut, MessageSquarePlus } from 'lucide-react';
+import { Search, LogOut, MessageSquarePlus, Sun, Moon } from 'lucide-react';
 import ChatOptionsMenu from './ChatOptionsMenu';
 
 const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setConversations }) => {
@@ -20,7 +20,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
       while (retries > 0) {
         try {
           const response = await chatAPI.getConversations();
-          if (Array.isArray(response.data.conversations)) {
+          if (response.data && response.data.success && Array.isArray(response.data.conversations)) {
             setConversations(response.data.conversations);
             setLoading(false);
             return;
@@ -61,6 +61,23 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
 
     fetchConversations();
   }, [logout, navigate, setConversations]);
+
+  // Refetch conversations when a new one is added
+  useEffect(() => {
+    if (conversations.length > 0) {
+      const fetchLatestConversations = async () => {
+        try {
+          const response = await chatAPI.getConversations();
+          if (response.data && response.data.success && Array.isArray(response.data.conversations)) {
+            setConversations(response.data.conversations);
+          }
+        } catch (error) {
+          console.error('Error refreshing conversations:', error);
+        }
+      };
+      fetchLatestConversations();
+    }
+  }, [conversations.length]);
 
   useEffect(() => {
     if (!socket) return;
@@ -117,6 +134,14 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
     }
   };
 
+  const handleSelectConversation = (conversation) => {
+    onSelectConversation(conversation);
+    setConversations(prev => {
+      const filtered = prev.filter(c => c._id !== conversation._id);
+      return [conversation, ...filtered];
+    });
+  };
+
   const filteredConversations = conversations.filter(conversation => {
     const otherUser = conversation.participants.find(p => p._id !== user._id);
     return otherUser?.username.toLowerCase().includes(searchQuery.toLowerCase());
@@ -125,25 +150,27 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <div 
-            className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-            onClick={() => navigate('/profile')}
-          >
-            {user?.profilePic ? (
-              <img
-                src={user.profilePic}
-                alt="Profile"
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-gray-200">
-                <span className="text-gray-500 text-sm font-semibold">
-                  {user?.username?.charAt(0)?.toUpperCase()}
-                </span>
-              </div>
-            )}
-            <span className="font-semibold text-gray-800">{user?.username}</span>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div 
+              className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+              onClick={() => navigate('/profile')}
+            >
+              {user?.profilePic ? (
+                <img
+                  src={user.profilePic}
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-400 shadow-sm"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-2 ring-blue-400 shadow-sm">
+                  <span className="text-gray-500 text-sm font-semibold">
+                    {user?.username?.charAt(0)?.toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <span className="font-semibold text-gray-800 text-lg">{user?.username}</span>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <button
@@ -160,7 +187,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
             </button>
           </div>
         </div>
-        <div className="relative">
+        <div className="relative mb-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -171,7 +198,7 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-2">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -193,28 +220,24 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
             return (
               <div
                 key={conversation._id}
-                className="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
+                className="flex items-center p-4 mb-2 bg-white rounded-xl shadow transition-all duration-200 hover:shadow-md hover:bg-gray-50 cursor-pointer border border-gray-100"
+                onClick={() => handleSelectConversation(conversation)}
               >
-                <div
-                  className="flex-1 flex items-center"
-                  onClick={() => onSelectConversation(conversation)}
-                >
-                  <img
-                    src={otherUser?.profilePic || '/default-avatar.png'}
-                    alt={otherUser?.username}
-                    className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-gray-200"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-semibold text-gray-800 truncate">{otherUser?.username}</h3>
-                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                        {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 truncate">
-                      {conversation.lastMessage?.content || 'No messages yet'}
-                    </p>
+                <img
+                  src={otherUser?.profilePic || '/default-avatar.png'}
+                  alt={otherUser?.username}
+                  className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-blue-400 shadow-sm"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-semibold text-gray-900 truncate text-base">{otherUser?.username}</h3>
+                    <span className="text-xs text-gray-400 whitespace-nowrap ml-2 font-medium">
+                      {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
+                  <p className="text-sm text-gray-500 truncate font-light">
+                    {conversation.lastMessage?.content || 'No messages yet'}
+                  </p>
                 </div>
                 <ChatOptionsMenu
                   conversationId={conversation._id}

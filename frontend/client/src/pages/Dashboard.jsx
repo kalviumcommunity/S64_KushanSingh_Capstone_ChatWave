@@ -1,7 +1,7 @@
 // src/pages/Dashboard.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/chat/Sidebar';
+// import Sidebar from '../components/chat/Sidebar';
 import ChatWindow from '../components/chat/ChatWindow';
 import { getChats } from '../utils/api';
 
@@ -25,7 +25,7 @@ const Dashboard = () => {
 
   return (
     <div className="flex h-screen">
-      <Sidebar chats={chats} onSelectChat={setSelectedChat} />
+      {/* Sidebar removed as it is not used */}
       <ChatWindow selectedChat={selectedChat} />
     </div>
   );

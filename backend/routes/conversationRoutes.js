@@ -3,12 +3,15 @@ const router = express.Router();
 const { Conversation, Message } = require('../models');
 const { auth } = require('../middleware/authMiddleware');
 
-// GET /api/conversations - Fetch all conversations
+// GET /api/conversations - Fetch all conversations (exclude soft-deleted)
 router.get("/", auth, async (req, res) => {
   const userId = req.user._id;
 
   try {
-    const conversations = await Conversation.find({ participants: userId })
+    const conversations = await Conversation.find({ 
+      participants: userId,
+      deletedBy: { $ne: userId }
+    })
       .populate("participants", "username email profilePic")
       .populate("lastMessage")
       .sort({ updatedAt: -1 });
@@ -20,33 +23,41 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// POST /api/conversations - Create a new conversation
+// POST /api/conversations - Find or create a conversation (with soft delete restore)
 router.post("/", auth, async (req, res) => {
   try {
-    const { participants, isGroup, groupName } = req.body;
+    const { participants, participantId, isGroup, groupName } = req.body;
+    const userIds = [...new Set([...(participants || []), participantId, req.user._id.toString()])];
 
-    // Ensure current user is included in participants
-    if (!participants.includes(req.user._id)) {
-      participants.push(req.user._id);
-    }
-
-    const newConversation = new Conversation({
-      participants,
-      isGroup: isGroup || false,
-      groupName: groupName || ''
+    // Try to find an existing conversation (even if soft-deleted)
+    let conversation = await Conversation.findOne({
+      participants: { $all: userIds, $size: userIds.length },
+      isGroup: isGroup || false
     });
 
-    await newConversation.save();
+    if (!conversation) {
+      conversation = new Conversation({
+        participants: userIds,
+        isGroup: isGroup || false,
+        groupName: groupName || ''
+      });
+      await conversation.save();
+    } else if (conversation.deletedBy.includes(req.user._id)) {
+      // If conversation was soft-deleted by this user, remove from deletedBy
+      conversation.deletedBy = conversation.deletedBy.filter(
+        id => id.toString() !== req.user._id.toString()
+      );
+      await conversation.save();
+    }
 
-    // Populate the participants information
-    const populatedConversation = await Conversation.findById(newConversation._id)
+    const populatedConversation = await Conversation.findById(conversation._id)
       .populate("participants", "username email profilePic")
       .populate("lastMessage");
 
     res.status(201).json(populatedConversation);
   } catch (err) {
-    console.error('Error creating conversation:', err);
-    res.status(500).json({ error: "Failed to create conversation." });
+    console.error('Error creating/finding conversation:', err);
+    res.status(500).json({ error: "Failed to create/find conversation." });
   }
 });
 
@@ -94,7 +105,7 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/conversations/:id - Delete a conversation
+// DELETE /api/conversations/:id - Soft delete a conversation for the user
 router.delete("/:id", auth, async (req, res) => {
   try {
     const conversation = await Conversation.findById(req.params.id);
@@ -103,13 +114,13 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(404).json({ error: "Conversation not found." });
     }
 
-    // Delete all messages in the conversation
-    await Message.deleteMany({ conversationId: conversation._id });
+    // Add user to deletedBy if not already present
+    if (!conversation.deletedBy.includes(req.user._id)) {
+      conversation.deletedBy.push(req.user._id);
+      await conversation.save();
+    }
 
-    // Delete the conversation
-    await conversation.deleteOne();
-
-    res.status(200).json({ message: "Conversation deleted successfully." });
+    res.status(200).json({ message: "Conversation deleted for user." });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete conversation." });
   }

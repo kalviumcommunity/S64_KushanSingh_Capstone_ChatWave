@@ -52,31 +52,47 @@ const SignupForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <input 
-        type="text" 
-        name="username" 
-        placeholder="Username" 
-        onChange={handleChange} 
-        className="input" 
-        required 
-      />
-      <input 
-        type="email" 
-        name="email" 
-        placeholder="Email" 
-        onChange={handleChange} 
-        className="input" 
-        required 
-      />
-      <input 
-        type="password" 
-        name="password" 
-        placeholder="Password" 
-        onChange={handleChange} 
-        className="input" 
-        required 
-      />
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl max-w-md mx-auto p-8 mt-8 border border-gray-100 transition-all duration-200">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Sign Up</h2>
+      <div className="mb-4">
+        <label htmlFor="username" className="block text-gray-700 font-semibold mb-2">Username</label>
+        <input
+          id="username"
+          type="text"
+          name="username"
+          value={formData.username}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Username"
+          required
+        />
+      </div>
+      <div className="mb-4">
+        <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">Email</label>
+        <input
+          id="email"
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Email"
+          required
+        />
+      </div>
+      <div className="mb-6">
+        <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">Password</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          value={formData.password}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm ${error ? 'border-red-400' : 'border-gray-300'}`}
+          aria-label="Password"
+          required
+        />
+      </div>
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
           Profile Picture
@@ -102,8 +118,14 @@ const SignupForm = () => {
           </div>
         )}
       </div>
-      {error && <p className="text-red-500">{error}</p>}
-      <button type="submit" className="btn-primary w-full">Signup</button>
+      {error && <div className="mb-4 text-red-500 text-sm text-center">{error}</div>}
+      <button
+        type="submit"
+        className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow focus:outline-none focus:ring-2 focus:ring-blue-400"
+        aria-label="Sign Up"
+      >
+        Sign Up
+      </button>
     </form>
   );
 };

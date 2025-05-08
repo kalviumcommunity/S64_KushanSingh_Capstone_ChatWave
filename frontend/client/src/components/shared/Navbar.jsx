@@ -1,8 +1,29 @@
 // src/components/shared/Navbar.jsx
 import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Sun, Moon } from 'lucide-react';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -25,6 +46,13 @@ const Navbar = () => {
           </>
         )}
       </div>
+      <button
+        onClick={toggleTheme}
+        className="ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-700" />}
+      </button>
     </nav>
   );
 };
