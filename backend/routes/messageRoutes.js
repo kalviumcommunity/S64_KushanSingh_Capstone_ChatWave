@@ -136,4 +136,23 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
+// 🗑️ DELETE /api/messages/:id - Delete a message
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.id);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found.' });
+    }
+    // Only the sender can delete their message
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'You can only delete your own messages.' });
+    }
+    await message.deleteOne();
+    res.status(200).json({ message: 'Message deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting message:', err);
+    res.status(500).json({ error: 'Failed to delete message.' });
+  }
+});
+
 module.exports = router;
