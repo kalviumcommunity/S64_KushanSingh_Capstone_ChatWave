@@ -3,13 +3,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Send, Image, Smile, MoreVertical, Paperclip, X, Bell } from 'lucide-react';
+import { Send, Image, Smile, MoreVertical, Paperclip, X, Bell, Users } from 'lucide-react';
 import api, { chatAPI } from '../../utils/api';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import ChatOptionsMenu from './ChatOptionsMenu';
+import Message from './Message';
+import EmojiPicker from './EmojiPicker';
 
-const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
+const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversationUpdate }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -21,15 +25,17 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const fileInputRef = useRef(null);
   const { user } = useAuth();
-  const { socket, notifications, clearNotification } = useSocket();
+  const { socket, notifications, clearNotification, isUserOnline } = useSocket();
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const wasAtBottomRef = useRef(true);
   const prevMessagesLength = useRef(0);
   const [autoScroll, setAutoScroll] = useState(true);
   const navigate = useNavigate();
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
 
   const otherUser = conversation.participants.find(p => p._id !== user._id);
+  const isGroup = conversation?.isGroup;
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -211,40 +217,80 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full w-full bg-gray-50">
-      {/* Chat Header */}
-      <div className="flex items-center p-4 border-b border-gray-200 bg-white shadow-sm">
-        <div 
-          className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-          onClick={handleProfileClick}
-        >
-          <img
-            src={otherUser?.profilePic || '/default-avatar.png'}
-            alt={otherUser?.username}
-            className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
-          />
+  const getOtherParticipants = () => {
+    if (!conversation) return [];
+    return conversation.participants.filter(p => p._id !== user._id);
+  };
+
+  const handleGroupUpdated = (updatedGroup) => {
+    if (onConversationUpdate) {
+      onConversationUpdate(updatedGroup);
+    }
+  };
+
+  const renderHeader = () => {
+    if (!conversation) return null;
+
+    return (
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center space-x-4">
+          {conversation.isGroup ? (
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">
+                {conversation.name ? conversation.name[0].toUpperCase() : 'G'}
+              </div>
+            </div>
+          ) : (
+            <div className="relative">
+              <img
+                src={otherUser?.profilePic || '/default-avatar.png'}
+                alt={otherUser?.username}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                isUserOnline(otherUser?._id) ? 'bg-green-500' : 'bg-gray-400'
+              }`} />
+            </div>
+          )}
           <div>
-            <h3 className="font-semibold text-gray-800">{otherUser?.username}</h3>
-            {isTyping && (
-              <p className="text-sm text-gray-500">typing...</p>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {conversation.isGroup ? conversation.name : otherUser?.username}
+            </h2>
+            {!conversation.isGroup && (
+              <p className="text-sm text-gray-500">
+                {isUserOnline(otherUser?._id) ? 'Online' : 'Offline'}
+              </p>
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-2 ml-auto">
-          {hasNewMessage && (
-            <div className="relative">
-              <Bell className="w-5 h-5 text-blue-500 animate-pulse" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </div>
+        <div className="relative">
+          <button
+            onClick={() => setOptionsMenuOpen((open) => !open)}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <MoreVertical className="w-5 h-5 text-gray-500" />
+          </button>
+          {optionsMenuOpen && (
+            <ChatOptionsMenu
+              conversationId={conversation._id}
+              onDeleteHistory={handleDeleteHistory}
+              onDeleteChat={handleDeleteChat}
+              isGroup={conversation.isGroup}
+              group={conversation}
+              onGroupUpdated={handleGroupUpdated}
+              isOpen={optionsMenuOpen}
+              onOpen={() => setOptionsMenuOpen(true)}
+              onClose={() => setOptionsMenuOpen(false)}
+            />
           )}
-          <ChatOptionsMenu
-            conversationId={conversation._id}
-            onDeleteHistory={handleDeleteHistory}
-            onDeleteChat={handleDeleteChat}
-          />
         </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-full w-full bg-gray-50">
+      {renderHeader()}
 
       {/* Messages Area */}
       <div
@@ -268,37 +314,12 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
           </div>
         ) : (
           messages.map((message) => (
-            <div
+            <Message
               key={message._id}
-              className={`flex ${message.sender._id === user._id ? 'justify-end' : 'justify-start'} mb-4`}
-            >
-              <div
-                className={`max-w-[70%] p-4 rounded-2xl shadow-md transition-all duration-200 \
-                  ${message.sender._id === user._id
-                    ? 'bg-blue-600 text-white rounded-tr-none'
-                    : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'}
-                  `}
-                aria-label={message.sender._id === user._id ? 'Sent message' : 'Received message'}
-                tabIndex={0}
-              >
-                {message.media && (
-                  <img
-                    src={message.media}
-                    alt="Message attachment"
-                    className="max-w-full h-auto rounded-lg mb-2 shadow-sm"
-                  />
-                )}
-                <p className="text-sm font-medium break-words">{message.content}</p>
-                <span className={`text-xs mt-2 block ${message.sender._id === user._id ? 'text-blue-100' : 'text-gray-500'}`}
-                  aria-label="Message timestamp"
-                >
-                  {new Date(message.createdAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              </div>
-            </div>
+              message={message}
+              isOwnMessage={message.sender._id === user._id}
+              showAvatar={conversation.isGroup}
+            />
           ))
         )}
         <div ref={messagesEndRef} />
@@ -363,11 +384,7 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory }) => {
             </button>
             {showEmojiPicker && (
               <div className="absolute bottom-full right-0 mb-2 z-50 bg-white rounded-lg shadow-lg border border-gray-200">
-                <Picker
-                  data={data}
-                  onEmojiSelect={addEmoji}
-                  theme="light"
-                />
+                <EmojiPicker onSelect={addEmoji} />
               </div>
             )}
           </div>

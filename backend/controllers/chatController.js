@@ -14,10 +14,8 @@ const getConversations = async (req, res) => {
       .populate('lastMessage')
       .sort({ lastActivity: -1 });
 
-    res.status(200).json({
-      success: true,
-      conversations
-    });
+    // Return the conversations array directly
+    res.status(200).json(conversations);
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -339,6 +337,307 @@ const deleteConversation = async (req, res) => {
   }
 };
 
+// @desc    Create a group chat
+// @route   POST /api/chat/conversations/group
+// @access  Private
+const createGroup = async (req, res) => {
+  try {
+    const { name, participants } = req.body;
+    const groupImage = req.file;
+
+    if (!name || !participants) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a group name and participants'
+      });
+    }
+
+    let participantsArray;
+    try {
+      participantsArray = JSON.parse(participants);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid participants format'
+      });
+    }
+
+    if (!Array.isArray(participantsArray) || participantsArray.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide at least one participant'
+      });
+    }
+
+    // Create new group conversation
+    const conversation = new Conversation({
+      name,
+      participants: [req.user._id, ...participantsArray],
+      isGroup: true,
+      createdBy: req.user._id,
+      admins: [req.user._id]
+    });
+
+    // Handle group image if provided
+    if (groupImage) {
+      conversation.groupImage = `/uploads/${groupImage.filename}`;
+    }
+
+    await conversation.save();
+
+    // Populate the conversation with necessary data
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'username email profilePic')
+      .populate('lastMessage');
+
+    res.status(201).json({
+      success: true,
+      conversation: populatedConversation
+    });
+  } catch (error) {
+    console.error('Error creating group:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update group details
+// @route   PUT /api/chat/conversations/group/:id
+// @access  Private
+const updateGroup = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const groupImage = req.file;
+
+    // Find the conversation
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+
+    // Check if it's a group
+    if (!conversation.isGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Not a group conversation'
+      });
+    }
+
+    // Check if user is a participant
+    if (!conversation.participants.includes(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be a group member to update group details'
+      });
+    }
+
+    // Update group details
+    if (name) {
+      conversation.name = name;
+    }
+
+    // Handle group image if provided
+    if (groupImage) {
+      conversation.groupImage = `/uploads/${groupImage.filename}`;
+    }
+
+    await conversation.save();
+
+    // Populate the conversation with necessary data
+    const updatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'username email profilePic')
+      .populate('lastMessage');
+
+    res.json({
+      success: true,
+      conversation: updatedConversation
+    });
+  } catch (error) {
+    console.error('Error updating group:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Add members to group
+// @route   POST /api/chat/conversations/group/:id/members
+// @access  Private
+const addGroupMembers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userIds } = req.body;
+
+    if (!userIds || !Array.isArray(userIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an array of user IDs'
+      });
+    }
+
+    const conversation = await Conversation.findById(id);
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+
+    if (!conversation.isGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Not a group conversation'
+      });
+    }
+
+    if (!conversation.admins.includes(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to add members to this group'
+      });
+    }
+
+    // Add new members
+    conversation.participants = [...new Set([...conversation.participants, ...userIds])];
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(id)
+      .populate('participants', 'username email profilePic')
+      .populate('lastMessage');
+
+    res.status(200).json({
+      success: true,
+      conversation: updatedConversation
+    });
+  } catch (error) {
+    console.error('Error adding group members:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Remove member from group
+// @route   DELETE /api/chat/conversations/group/:id/members/:userId
+// @access  Private
+const removeGroupMember = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    const conversation = await Conversation.findById(id);
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+
+    if (!conversation.isGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Not a group conversation'
+      });
+    }
+
+    if (!conversation.admins.includes(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to remove members from this group'
+      });
+    }
+
+    // Remove member
+    conversation.participants = conversation.participants.filter(
+      p => p.toString() !== userId
+    );
+
+    // Remove from admins if they were an admin
+    conversation.admins = conversation.admins.filter(
+      a => a.toString() !== userId
+    );
+
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(id)
+      .populate('participants', 'username email profilePic')
+      .populate('lastMessage');
+
+    res.status(200).json({
+      success: true,
+      conversation: updatedConversation
+    });
+  } catch (error) {
+    console.error('Error removing group member:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Leave group
+// @route   POST /api/chat/conversations/group/:id/leave
+// @access  Private
+const leaveGroup = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const conversation = await Conversation.findById(id);
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+
+    if (!conversation.isGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Not a group conversation'
+      });
+    }
+
+    // Remove user from participants
+    conversation.participants = conversation.participants.filter(
+      p => p.toString() !== req.user._id.toString()
+    );
+
+    // Remove from admins if they were an admin
+    conversation.admins = conversation.admins.filter(
+      a => a.toString() !== req.user._id.toString()
+    );
+
+    await conversation.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Successfully left the group'
+    });
+  } catch (error) {
+    console.error('Error leaving group:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getConversations,
   getMessages,
@@ -347,5 +646,10 @@ module.exports = {
   searchUsers,
   createOrGetConversation,
   deleteChatHistory,
-  deleteConversation
+  deleteConversation,
+  createGroup,
+  updateGroup,
+  addGroupMembers,
+  removeGroupMember,
+  leaveGroup
 }; 

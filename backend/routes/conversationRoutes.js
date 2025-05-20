@@ -126,4 +126,27 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+// DELETE /api/conversations/:id/history - Clear chat history
+router.delete("/:id/history", auth, async (req, res) => {
+  try {
+    const conversation = await Conversation.findById(req.params.id);
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    // Delete all messages in the conversation
+    await Message.deleteMany({ conversation: conversation._id });
+
+    // Update conversation's lastMessage to null
+    conversation.lastMessage = null;
+    await conversation.save();
+
+    res.status(200).json({ message: "Chat history cleared successfully." });
+  } catch (err) {
+    console.error('Error clearing chat history:', err);
+    res.status(500).json({ error: "Failed to clear chat history." });
+  }
+});
+
 module.exports = router;

@@ -10,6 +10,7 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const { user } = useAuth();
 
   useEffect(() => {
@@ -49,6 +50,25 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('error', (error) => {
       console.error('Socket error:', error);
       toast.error(error.message || 'Socket error occurred');
+    });
+
+    // Handle user online/offline status updates
+    newSocket.on('updateUserStatus', ({ userId, isOnline }) => {
+      console.log(`User ${userId} is ${isOnline ? 'online' : 'offline'}`);
+      setOnlineUsers(prev => {
+        const newSet = new Set(prev);
+        if (isOnline) {
+          newSet.add(userId);
+        } else {
+          newSet.delete(userId);
+        }
+        return newSet;
+      });
+    });
+
+    // Listen for the full list of online users
+    newSocket.on('onlineUsers', (userIds) => {
+      setOnlineUsers(new Set(userIds));
     });
 
     newSocket.on('newMessageNotification', (data) => {
@@ -92,8 +112,12 @@ export const SocketProvider = ({ children }) => {
     setNotifications(prev => prev.filter(n => n.conversationId !== conversationId));
   };
 
+  const isUserOnline = (userId) => {
+    return onlineUsers.has(userId);
+  };
+
   return (
-    <SocketContext.Provider value={{ socket, notifications, clearNotification }}>
+    <SocketContext.Provider value={{ socket, notifications, clearNotification, isUserOnline }}>
       {children}
     </SocketContext.Provider>
   );

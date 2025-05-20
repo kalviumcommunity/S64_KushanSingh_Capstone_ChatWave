@@ -1,64 +1,114 @@
-import { useState } from 'react';
-import { MoreVertical, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { MoreVertical, Trash2, History, Users, UserPlus, UserMinus, Edit, LogOut } from 'lucide-react';
 import { chatAPI } from '../../utils/api';
 import { toast } from 'react-hot-toast';
+import EditGroupModal from './EditGroupModal';
 
-const ChatOptionsMenu = ({ conversationId, onDeleteHistory, onDeleteChat }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const ChatOptionsMenu = ({ conversationId, onDeleteHistory, onDeleteChat, isGroup, group, onGroupUpdated, isOpen, onOpen, onClose }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const menuRef = useRef(null);
 
-  const handleDeleteHistory = async () => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+  const handleLeaveGroup = async () => {
     try {
-      await chatAPI.deleteChatHistory(conversationId);
-      toast.success('Chat history deleted');
-      onDeleteHistory?.();
+      await chatAPI.leaveGroup(conversationId);
+      onDeleteChat();
+      toast.success('Left group successfully');
     } catch (error) {
-      console.error('Error deleting chat history:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete chat history');
+      console.error('Error leaving group:', error);
+      toast.error(error.response?.data?.message || 'Failed to leave group');
     }
-    setIsOpen(false);
   };
 
-  const handleDeleteChat = async () => {
-    try {
-      await chatAPI.deleteConversation(conversationId);
-      toast.success('Chat deleted');
-      onDeleteChat?.();
-    } catch (error) {
-      console.error('Error deleting chat:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete chat');
-    }
-    setIsOpen(false);
+  const handleEditGroup = () => {
+    setIsEditModalOpen(true);
+    onClose();
   };
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        aria-label="Chat options"
-      >
-        <MoreVertical className="w-5 h-5 text-gray-600" />
-      </button>
+    <>
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={isOpen ? onClose : onOpen}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <MoreVertical className="w-5 h-5 text-gray-500" />
+        </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-          <button
-            onClick={handleDeleteHistory}
-            className="flex items-center w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100"
-          >
-            <Trash2 className="w-4 h-4 mr-3" />
-            Delete Chat History
-          </button>
-          <button
-            onClick={handleDeleteChat}
-            className="flex items-center w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
-          >
-            <Trash2 className="w-4 h-4 mr-3" />
-            Delete Chat
-          </button>
-        </div>
-      )}
-    </div>
+        {isOpen && (
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+            {isGroup && (
+              <>
+                <button
+                  onClick={handleEditGroup}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Group
+                </button>
+                <button
+                  onClick={() => {
+                    onClose();
+                    toast.info('Add members feature coming soon');
+                  }}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Add Members
+                </button>
+                <button
+                  onClick={() => {
+                    onClose();
+                    handleLeaveGroup();
+                  }}
+                  className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Leave Group
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => {
+                onClose();
+                onDeleteHistory();
+              }}
+              className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear Chat
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                onDeleteChat();
+              }}
+              className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Chat
+            </button>
+          </div>
+        )}
+      </div>
+
+      <EditGroupModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        group={group}
+        onGroupUpdated={onGroupUpdated}
+      />
+    </>
   );
 };
 

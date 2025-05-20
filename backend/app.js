@@ -14,6 +14,7 @@ const userRoutes = require("./routes/userRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const conversationRoutes = require("./routes/conversationRoutes");
 const uploadRoutes = require('./routes/uploadRoutes');
+const { errorHandler } = require('./middleware/errorMiddleware');
 
 // Initialize express app
 const app = express();
@@ -50,10 +51,7 @@ app.get("/", (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something broke!' });
-});
+app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {

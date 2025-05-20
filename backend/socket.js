@@ -47,8 +47,8 @@ const socketIO = (server) => {
           lastSeen: new Date()
         });
 
-        // Emit to all users that a user has come online
-        socket.broadcast.emit("updateUserStatus", { userId, isOnline: true });
+        // Broadcast the full list of online users to all clients
+        socket.server.emit('onlineUsers', Array.from(onlineUsers.values()));
       } catch (error) {
         console.error("Error updating user online status:", error);
       }
@@ -118,19 +118,19 @@ const socketIO = (server) => {
         );
 
         otherUsers.forEach(user => {
-          const recipientSocket = Array.from(io.sockets.sockets.values())
+        const recipientSocket = Array.from(io.sockets.sockets.values())
             .find(s => s.userId === user._id.toString());
-          
-          if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
-            recipientSocket.emit('newMessageNotification', {
-              conversationId,
+        
+        if (recipientSocket && !recipientSocket.rooms.has(conversationId)) {
+          recipientSocket.emit('newMessageNotification', {
+            conversationId,
               message: {
                 content,
                 media
               },
               sender: message.sender
-            });
-          }
+          });
+        }
         });
 
       } catch (error) {
@@ -188,7 +188,8 @@ const socketIO = (server) => {
             isOnline: false,
             lastSeen: new Date()
           });
-          socket.broadcast.emit("updateUserStatus", { userId, isOnline: false });
+          // Broadcast the full list of online users to all clients
+          socket.server.emit('onlineUsers', Array.from(onlineUsers.values()));
         } catch (error) {
           console.error("Error updating user offline status:", error);
         }
