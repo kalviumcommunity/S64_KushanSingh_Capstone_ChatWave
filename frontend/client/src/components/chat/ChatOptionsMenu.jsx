@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Trash2, History, Users, UserPlus, UserMinus, Edit, LogOut } from 'lucide-react';
+import { Trash2, History, Users, UserPlus, UserMinus, Edit, LogOut } from 'lucide-react';
 import { chatAPI } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import EditGroupModal from './EditGroupModal';
@@ -37,70 +37,64 @@ const ChatOptionsMenu = ({ conversationId, onDeleteHistory, onDeleteChat, isGrou
 
   return (
     <>
-      <div className="relative" ref={menuRef}>
-        <button
-          onClick={isOpen ? onClose : onOpen}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+      {isOpen && (
+        <div
+          className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+          ref={menuRef}
         >
-          <MoreVertical className="w-5 h-5 text-gray-500" />
-        </button>
-
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-            {isGroup && (
-              <>
-                <button
-                  onClick={handleEditGroup}
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Group
-                </button>
-                <button
-                  onClick={() => {
-                    onClose();
-                    toast.info('Add members feature coming soon');
-                  }}
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Add Members
-                </button>
-                <button
-                  onClick={() => {
-                    onClose();
-                    handleLeaveGroup();
-                  }}
-                  className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Leave Group
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => {
-                onClose();
-                onDeleteHistory();
-              }}
-              className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear Chat
-            </button>
-            <button
-              onClick={() => {
-                onClose();
-                onDeleteChat();
-              }}
-              className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Chat
-            </button>
-          </div>
-        )}
-      </div>
+          {isGroup && (
+            <>
+              <button
+                onClick={handleEditGroup}
+                className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Group
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  toast.info('Add members feature coming soon');
+                }}
+                className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Add Members
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  handleLeaveGroup();
+                }}
+                className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Leave Group
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => {
+              onClose();
+              onDeleteHistory();
+            }}
+            className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Clear Chat
+          </button>
+          <button
+            onClick={() => {
+              onClose();
+              onDeleteChat();
+            }}
+            className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Chat
+          </button>
+        </div>
+      )}
 
       <EditGroupModal
         isOpen={isEditModalOpen}
