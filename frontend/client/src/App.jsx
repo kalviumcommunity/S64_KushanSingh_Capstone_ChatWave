@@ -1,15 +1,16 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import ProfilePage from "./pages/ProfilePage";
+import React from 'react';
+import Sidebar from './components/Sidebar';
+import ChatWindow from './components/ChatWindow';
+import './App.css';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-      </Routes>
-    </Router>
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar />
+      <div className="flex-1">
+        <ChatWindow />
+      </div>
+    </div>
   );
 }
 
