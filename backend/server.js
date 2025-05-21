@@ -23,6 +23,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 connectDB();
 
 // Import routes
+const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/userRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const conversationRoutes = require("./routes/conversationRoutes");
@@ -30,6 +31,7 @@ const fileRoutes = require('./routes/fileRoutes');
 const uploadRoutes = require('./routes/upload');
 
 // Use routes
+app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/conversations", conversationRoutes);

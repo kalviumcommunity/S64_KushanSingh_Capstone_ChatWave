@@ -1,16 +1,29 @@
-import React from 'react';
-import Sidebar from './components/Sidebar';
-import ChatWindow from './components/ChatWindow';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import Chat from './components/Chat';
 
 function App() {
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
-      <div className="flex-1">
-        <ChatWindow />
-      </div>
-    </div>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 
