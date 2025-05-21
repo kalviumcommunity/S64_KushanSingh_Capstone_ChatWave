@@ -11,10 +11,11 @@ const ChatWindow = () => {
     avatar: 'https://via.placeholder.com/40'
   });
 
-  const handleSendMessage = (message) => {
+  const handleSendMessage = (message, file) => {
     const newMessage = {
       id: Date.now(),
       text: message,
+      file: file,
       sender: currentUser,
       timestamp: new Date().toISOString()
     };
