@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import MessageActions from './MessageActions';
 
-const MessageList = ({ messages, currentUser }) => {
+const MessageList = ({ messages, currentUser, onEditMessage, onDeleteMessage }) => {
+  const [editingMessageId, setEditingMessageId] = useState(null);
+
+  useEffect(() => {
+    console.log('MessageList received messages:', messages);
+    console.log('Current user:', currentUser);
+    setEditingMessageId(null); // Reset editing when messages change
+  }, [messages, currentUser]);
+
   const renderFilePreview = (file) => {
     if (!file) return null;
 
@@ -43,38 +52,56 @@ const MessageList = ({ messages, currentUser }) => {
 
   return (
     <div className="flex flex-col p-4 space-y-4 overflow-y-auto h-full">
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          className={`flex ${
-            message.sender.id === currentUser.id ? 'justify-end' : 'justify-start'
-          }`}
-        >
-          <div
-            className={`max-w-[70%] rounded-lg p-3 ${
-              message.sender.id === currentUser.id
-                ? 'bg-blue-500 text-white'
-                : 'bg-white text-gray-800'
-            }`}
-          >
-            {message.sender.id !== currentUser.id && (
-              <div className="flex items-center mb-1">
-                <img
-                  src={message.sender.avatar}
-                  alt={message.sender.name}
-                  className="w-6 h-6 rounded-full mr-2"
-                />
-                <span className="text-sm font-semibold">{message.sender.name}</span>
+      {messages && messages.length > 0 ? (
+        messages.map((message) => {
+          const senderId = message.sender._id || message.sender.id;
+          const userId = currentUser._id || currentUser.id;
+          const isOwnMessage = senderId === userId;
+          return (
+            <div
+              key={message._id}
+              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[70%] rounded-lg p-3 relative ${
+                  isOwnMessage ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'
+                }`}
+              >
+                {!isOwnMessage && (
+                  <div className="flex items-center mb-1">
+                    <img
+                      src={message.sender.avatar || 'https://via.placeholder.com/40'}
+                      alt={message.sender.username}
+                      className="w-6 h-6 rounded-full mr-2"
+                    />
+                    <span className="text-sm font-semibold">{message.sender.username}</span>
+                  </div>
+                )}
+                {message.text && <p className="text-sm">{message.text}</p>}
+                {message.file && renderFilePreview(message.file)}
+                <span className="text-xs opacity-70 mt-1 block">
+                  {new Date(message.createdAt).toLocaleTimeString()}
+                </span>
+                {/* Always show actions for your own messages */}
+                {isOwnMessage && (
+                  <MessageActions
+                    message={message}
+                    currentUser={currentUser}
+                    onEdit={onEditMessage}
+                    onDelete={onDeleteMessage}
+                    isEditing={editingMessageId === message._id}
+                    setEditingMessageId={setEditingMessageId}
+                  />
+                )}
               </div>
-            )}
-            {message.text && <p className="text-sm">{message.text}</p>}
-            {message.file && renderFilePreview(message.file)}
-            <span className="text-xs opacity-70 mt-1 block">
-              {new Date(message.timestamp).toLocaleTimeString()}
-            </span>
-          </div>
+            </div>
+          );
+        })
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500">No messages yet. Start the conversation!</p>
         </div>
-      ))}
+      )}
     </div>
   );
 };
