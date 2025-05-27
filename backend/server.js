@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const path = require('path');
 const fs = require('fs');
+const passport = require('./config/passport');
 
 dotenv.config();
 const app = express();
@@ -17,6 +18,7 @@ if (!fs.existsSync(uploadsDir)) {
 
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 //Db connection
