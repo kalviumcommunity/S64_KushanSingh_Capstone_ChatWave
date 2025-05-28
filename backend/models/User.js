@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 // User Schema definition
 const userSchema = new mongoose.Schema({
@@ -7,14 +8,15 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true, // Trims spaces automatically
+    minlength: 3
   },
 
   email: {
     type: String,
     required: true,
     unique: true,
+    trim: true,
     lowercase: true, // Enforces lowercase emails
-    match: [/\S+@\S+\.\S+/, 'Please use a valid email address.'], // Regex for email validation
   },
 
   password: {
@@ -30,7 +32,7 @@ const userSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    default: 'Hey there! I’m using ChatWave 🌊',
+    default: "Hey there! I'm using ChatWave 🌊",
     trim: true,
   },
 
@@ -51,8 +53,32 @@ const userSchema = new mongoose.Schema({
     }
   ], // Optional: To build a future "contacts/friends" system
 
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true, // Adds createdAt & updatedAt
 });
 
-module.exports = mongoose.model('User', userSchema);
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;
