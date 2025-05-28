@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import GoogleAuth from '../GoogleAuth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -88,6 +89,9 @@ const Login = () => {
             </Link>
           </div>
         </form>
+        <div className="my-4 flex justify-center">
+          <GoogleAuth mode="login" />
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import GoogleAuth from '../GoogleAuth';
 
 const Register = () => {
   const [username, setUsername] = useState('');
@@ -104,6 +105,9 @@ const Register = () => {
             </Link>
           </div>
         </form>
+        <div className="my-4 flex justify-center">
+          <GoogleAuth mode="register" />
+        </div>
       </div>
     </div>
   );

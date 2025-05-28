@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const passport = require('passport');
 
 // Register a new user
 router.post('/register', async (req, res) => {
@@ -95,6 +96,45 @@ router.get('/me', auth, async (req, res) => {
       email: req.user.email
     }
   });
+});
+
+// Google OAuth routes
+router.get('/google', (req, res, next) => {
+  const mode = req.query.mode || 'login';
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    state: mode, // Pass mode as state
+  })(req, res, next);
+});
+
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, async (err, user, info) => {
+    const mode = req.query.state || req.query.mode || 'login';
+    try {
+      if (mode === 'register') {
+        // If user exists, block registration
+        const existingUser = await User.findOne({ email: user.email });
+        if (existingUser && !existingUser.googleId) {
+          return res.redirect(`${process.env.FRONTEND_URL}/register?error=Account already exists with this email`);
+        }
+      }
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      // Redirect to frontend with token
+      res.redirect(`${process.env.FRONTEND_URL}/auth/google/callback?token=${token}&user=${JSON.stringify({
+        id: user._id,
+        username: user.username,
+        email: user.email
+      })}`);
+    } catch (error) {
+      console.error('Error in Google callback:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=Authentication failed`);
+    }
+  })(req, res, next);
 });
 
 module.exports = router; 
