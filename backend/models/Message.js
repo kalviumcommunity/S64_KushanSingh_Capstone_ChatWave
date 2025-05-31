@@ -35,10 +35,9 @@ const messageSchema = new mongoose.Schema({
   },
 
   // URL of media (images/files) if attached
-  file: {
-    filename: String,
-    mimetype: String,
-    path: String
+  media: {
+    type: String,
+    default: ''
   },
 
   // Type of message (text, image, file)
