@@ -8,7 +8,6 @@ const EmojiPicker = ({ onSelect }) => {
         data={data}
         onEmojiSelect={onSelect}
         theme="light"
-        set="twitter"
         showPreview={false}
         showSkinTones={false}
         emojiSize={20}

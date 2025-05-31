@@ -34,7 +34,9 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversatio
   const navigate = useNavigate();
   const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
 
-  const otherUser = conversation.participants.find(p => p._id !== user._id);
+  const otherUser = conversation && !conversation.isGroup && Array.isArray(conversation.participants)
+    ? conversation.participants.find(p => p._id !== user._id)
+    : null;
   const isGroup = conversation?.isGroup;
 
   useEffect(() => {
@@ -56,10 +58,8 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversatio
   }, [conversation._id, clearNotification]);
 
   useEffect(() => {
-    if (!socket) return;
-
+    if (!socket || !conversation) return;
     socket.emit('joinConversation', conversation._id);
-
     const handleNewMessage = (data) => {
       if (data.conversationId === conversation._id) {
         setMessages(prev => {
@@ -75,20 +75,18 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversatio
         setHasNewMessage(false);
       }
     };
-
     socket.on('message:receive', handleNewMessage);
     socket.on('user:typing', (data) => {
-      if (data.userId === otherUser._id) {
+      if (otherUser && data.userId === otherUser._id) {
         setIsTyping(data.isTyping);
       }
     });
-
     return () => {
       socket.emit('leaveConversation', conversation._id);
       socket.off('message:receive', handleNewMessage);
       socket.off('user:typing');
     };
-  }, [socket, conversation._id, otherUser._id]);
+  }, [socket, conversation?._id, otherUser?._id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -317,8 +315,8 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversatio
             <Message
               key={message._id}
               message={message}
-              isOwnMessage={message.sender._id === user._id}
-              showAvatar={conversation.isGroup}
+              isOwnMessage={message.sender && message.sender._id === user._id}
+              showAvatar={conversation?.isGroup}
             />
           ))
         )}
