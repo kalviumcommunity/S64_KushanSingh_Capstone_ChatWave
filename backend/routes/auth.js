@@ -30,10 +30,16 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Generate token
+    // Generate tokens
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -43,7 +49,8 @@ router.post('/register', async (req, res) => {
         username: user.username,
         email: user.email
       },
-      token
+      token,
+      refreshToken
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -67,10 +74,16 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate token
+    // Generate tokens
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -80,10 +93,40 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email
       },
-      token
+      token,
+      refreshToken
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// Refresh token
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token is required' });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findOne({ _id: decoded.userId });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    // Generate new access token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.json({ token });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid refresh token' });
   }
 });
 
@@ -103,7 +146,7 @@ router.get('/google', (req, res, next) => {
   const mode = req.query.mode || 'login';
   passport.authenticate('google', {
     scope: ['profile', 'email'],
-    state: mode, // Pass mode as state
+    state: mode,
   })(req, res, next);
 });
 
@@ -112,20 +155,27 @@ router.get('/google/callback', (req, res, next) => {
     const mode = req.query.state || req.query.mode || 'login';
     try {
       if (mode === 'register') {
-        // If user exists, block registration
         const existingUser = await User.findOne({ email: user.email });
         if (existingUser && !existingUser.googleId) {
           return res.redirect(`${process.env.FRONTEND_URL}/register?error=Account already exists with this email`);
         }
       }
-      // Generate JWT token
+
+      // Generate tokens
       const token = jwt.sign(
         { userId: user._id },
         process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      const refreshToken = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_REFRESH_SECRET,
         { expiresIn: '7d' }
       );
-      // Redirect to frontend with token
-      res.redirect(`${process.env.FRONTEND_URL}/auth/google/callback?token=${token}&user=${JSON.stringify({
+
+      // Redirect to frontend with tokens
+      res.redirect(`${process.env.FRONTEND_URL}/auth/google/callback?token=${token}&refreshToken=${refreshToken}&user=${JSON.stringify({
         id: user._id,
         username: user.username,
         email: user.email

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/axios';
 
 const AuthContext = createContext();
 
@@ -16,20 +16,19 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in on mount
     const token = localStorage.getItem('token');
     if (token) {
-      fetchUser(token);
+      fetchUser();
     } else {
       setLoading(false);
     }
   }, []);
 
-  const fetchUser = async (token) => {
+  const fetchUser = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/auth/me');
       setUser(response.data.user);
     } catch (error) {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setError(error.response?.data?.error || 'Failed to fetch user');
     } finally {
       setLoading(false);
@@ -39,12 +38,13 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
+      const response = await api.post('/auth/login', {
         email,
         password
       });
-      const { token, user } = response.data;
+      const { token, refreshToken, user } = response.data;
       localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
       setUser(user);
       return user;
     } catch (error) {
@@ -56,13 +56,14 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       setError(null);
-      const response = await axios.post('http://localhost:5000/api/auth/register', {
+      const response = await api.post('/auth/register', {
         username,
         email,
         password
       });
-      const { token, user } = response.data;
+      const { token, refreshToken, user } = response.data;
       localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
       setUser(user);
       return user;
     } catch (error) {
@@ -73,6 +74,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 
