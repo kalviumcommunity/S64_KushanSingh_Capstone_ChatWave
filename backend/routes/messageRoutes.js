@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
+const multer = require("multer")
 const { Message, Conversation } = require('../models');
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 const { auth } = require("../middleware/authMiddleware");
@@ -14,7 +14,7 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
   try {
     const { conversationId, content } = req.body;
     const senderId = req.user._id;
-
+    
     if (!conversationId) {
       return res.status(400).json({ error: "conversationId is required." });
     }
@@ -61,10 +61,12 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
       type
     });
 
+
     // Populate sender and recipient information
     await newMessage.populate('sender', 'username profilePic');
     await newMessage.populate('recipient', 'username profilePic');
     await newMessage.save();
+
 
     // Update conversation's last message and activity
     await Conversation.findByIdAndUpdate(conversationId, {
@@ -86,6 +88,7 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
       data: newMessage,
     });
 
+
   } catch (err) {
     console.error("Error sending message:", err);
     if (err.name === 'ValidationError') {
@@ -98,6 +101,7 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
 // 🛠 PUT /api/messages/:id - Edit a message
 router.put("/:id", auth, async (req, res) => {
   const { content } = req.body;
+
 
   if (!content) {
     return res.status(400).json({ error: "Updated content is required." });
@@ -135,6 +139,7 @@ router.put("/:id", auth, async (req, res) => {
     res.status(500).json({ error: "Failed to update message." });
   }
 });
+
 
 // 🗑️ DELETE /api/messages/:id - Delete a message
 router.delete('/:id', auth, async (req, res) => {

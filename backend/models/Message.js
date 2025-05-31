@@ -28,16 +28,17 @@ const messageSchema = new mongoose.Schema({
   },
 
   // Text content of the message (optional for media-only messages)
-  content: {
+  text: {
     type: String,
     trim: true,
     default: '',
   },
 
   // URL of media (images/files) if attached
-  media: {
-    type: String,
-    default: '',
+  file: {
+    filename: String,
+    mimetype: String,
+    path: String
   },
 
   // Type of message (text, image, file)
