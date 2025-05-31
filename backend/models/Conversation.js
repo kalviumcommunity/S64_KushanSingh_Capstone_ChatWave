@@ -30,6 +30,14 @@ const conversationSchema = new mongoose.Schema(
       ref: "Message",
       default: null,
     },
+
+    // Typing indicator for group chats (optional)
+    isTyping: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt

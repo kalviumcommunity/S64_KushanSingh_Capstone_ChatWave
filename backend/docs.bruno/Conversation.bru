@@ -1,0 +1,23 @@
+meta {
+  name: Conversation
+  type: http
+  seq: 7
+}
+
+post {
+  url: http://localhost:5000/api/conversations
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MGYwZWZiODFhZDhmOWRkOWIwMjQ2MSIsImlhdCI6MTc0NTgxNzM5OSwiZXhwIjoxNzQ4NDA5Mzk5fQ.1j7JMfov5LSZpPn7r-W_pMT3D19Q1WfHqbZhDgiL54A
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MGYxNGVjODFhZDhmOWRkOWIwMjQ2NSIsImlhdCI6MTc0NTgxODkzNiwiZXhwIjoxNzQ4NDEwOTM2fQ.12G_yNhSewMtW-vmlsq6h-Hd9VZadikaB-mQWaxxhkc
+}
+
+body:json {
+  {
+    "participants": ["680f0efb81ad8f9dd9b02461", "680f14ec81ad8f9dd9b02465"]
+  }
+  
+}

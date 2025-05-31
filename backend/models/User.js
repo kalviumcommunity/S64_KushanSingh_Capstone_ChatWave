@@ -7,24 +7,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    trim: true, // Trims spaces automatically
-    minlength: 3
+    trim: true,
   },
 
   email: {
     type: String,
     required: true,
     unique: true,
-    trim: true,
-    lowercase: true, // Enforces lowercase emails
+    lowercase: true,
+    match: [/\S+@\S+\.\S+/, 'Please use a valid email address.'],
   },
 
   password: {
     type: String,
-    required: function() {
-      return !this.googleId; // Password is required only if not using Google auth
-    },
-    minlength: 6, // Enforces password strength
+    required: true,
+    minlength: 6,
   },
 
   googleId: {
@@ -35,23 +32,24 @@ const userSchema = new mongoose.Schema({
 
   profilePic: {
     type: String,
-    default: '', // Stores image URL, can integrate with Cloudinary/AWS S3
+    default: '',
   },
 
   status: {
     type: String,
-    default: "Hey there! I'm using ChatWave 🌊",
+
+    default: 'Hey there! I am using ChatWave 🌊',
     trim: true,
   },
 
   isOnline: {
     type: Boolean,
-    default: false, // Realtime presence status
+    default: false,
   },
 
   lastSeen: {
     type: Date,
-    default: Date.now, // Used for showing "last seen" status
+    default: Date.now,
   },
 
   contacts: [
@@ -59,15 +57,24 @@ const userSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     }
-  ], // Optional: To build a future "contacts/friends" system
+  ],
 
   createdAt: {
     type: Date,
     default: Date.now
   }
 }, {
-  timestamps: true, // Adds createdAt & updatedAt
+  timestamps: true,
 });
+
+// 🔐 Password hashing middleware
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
@@ -90,3 +97,4 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
+

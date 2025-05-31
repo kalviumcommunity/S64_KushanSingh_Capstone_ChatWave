@@ -1,93 +1,101 @@
 const express = require("express");
 const router = express.Router();
-const Message = require("../models/Message");
 const multer = require("multer");
-const path = require("path");
-const auth = require("../middleware/auth");
+const Message = require("../models/Message");
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
+const Conversation = require("../models/Conversation");
+const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
-const upload = multer({ storage: storage });
+// Multer setup for handling file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
-// Apply auth middleware to all routes
-router.use(auth);
-
-// GET /api/messages/:conversationId - Fetch messages for a conversation
+// 💬 GET /api/messages/:conversationId - Fetch messages by conversation
 router.get("/:conversationId", async (req, res) => {
   try {
-    console.log('Fetching messages for conversation:', req.params.conversationId);
     const messages = await Message.find({ conversationId: req.params.conversationId })
-      .populate("sender", "username email avatar")
+      .populate("sender", "username email profilePic")
       .sort({ createdAt: 1 });
-    console.log('Found messages:', messages);
+
     res.status(200).json(messages);
   } catch (err) {
-    console.error('Error fetching messages:', err);
+    console.error(err);
+
     res.status(500).json({ error: "Failed to fetch messages." });
   }
 });
 
-// POST /api/messages - Send a new message
+
+// ✉️ POST /api/messages - Send a new message (text and/or media)
 router.post("/", upload.single('file'), async (req, res) => {
-  console.log('Received message request:', req.body);
-  console.log('File:', req.file);
-  console.log('User:', req.user);
+  const { senderId, conversationId, content } = req.body;
 
-  const { text, conversationId } = req.body;
-  const senderId = req.user._id;
-
-  if (!conversationId) {
-    return res.status(400).json({ error: "Conversation ID is required." });
+  if (!senderId || !conversationId) {
+    return res.status(400).json({ error: "senderId and conversationId are required." });
   }
 
   try {
+    let mediaUrl = "";
+
+    // If file is attached, upload it to Cloudinary
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file); // Await the Cloudinary upload
+      mediaUrl = uploaded.secure_url;  // Get the media URL from Cloudinary
+    }
+
+    // Create and save new message
     const newMessage = new Message({
       sender: senderId,
-      text: text || "",
       conversationId,
-      file: req.file ? {
-        filename: req.file.filename,
-        mimetype: req.file.mimetype,
-        path: req.file.path
-      } : null
+      content: content || "", // If no text, set empty string
+      media: mediaUrl,        // Store media URL if exists
     });
 
-    console.log('Creating new message:', newMessage);
+
     const savedMessage = await newMessage.save();
     console.log('Saved message:', savedMessage);
 
-    const populatedMessage = await Message.findById(savedMessage._id)
-      .populate("sender", "username email avatar");
-    console.log('Populated message:', populatedMessage);
 
-    res.status(201).json(populatedMessage);
+    // Update lastMessage field in Conversation
+    await Conversation.findByIdAndUpdate(conversationId, { lastMessage: savedMessage._id });
+
+    // Emit new message to connected clients via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(conversationId).emit("newMessage", savedMessage);
+    }
+
+    res.status(201).json({
+      message: "✅ Message sent successfully!",
+      data: savedMessage,
+    });
+
+
   } catch (err) {
     console.error("Error sending message:", err);
     res.status(500).json({ error: "Failed to send message." });
   }
 });
 
-// PUT /api/messages/:id - Edit a message
+// 🛠 PUT /api/messages/:id - Edit a message
 router.put("/:id", async (req, res) => {
-  const { text } = req.body;
-  const messageId = req.params.id;
+  const { content } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: "Message text is required to update." });
+
+  if (!content) {
+    return res.status(400).json({ error: "Updated content is required." });
   }
 
   try {
-    const message = await Message.findById(messageId);
-    
-    if (!message) {
+
+    const updatedMessage = await Message.findByIdAndUpdate(
+      req.params.id,
+      { content },
+      { new: true }
+    );
+
+    if (!updatedMessage) {
+
       return res.status(404).json({ error: "Message not found." });
     }
 
@@ -106,6 +114,7 @@ router.put("/:id", async (req, res) => {
 
     res.status(200).json(populatedMessage);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to update message." });
   }
 });
