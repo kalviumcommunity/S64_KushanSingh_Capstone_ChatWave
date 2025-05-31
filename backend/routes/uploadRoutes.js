@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const cloudinaryUpload = require('../utils/cloudinaryUpload');
+const { uploadToCloudinary } = require('../utils/cloudinaryUpload');
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     }
 
     // Upload the file buffer to Cloudinary
-    const uploaded = await cloudinaryUpload(req.file);
+    const uploaded = await uploadToCloudinary(req.file);
 
     res.status(201).json({
       message: 'File uploaded successfully!',

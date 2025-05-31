@@ -1,84 +1,105 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const Message = require("../models/Message");
-
-const Conversation = require("../models/Conversation");
+const multer = require("multer")
+const { Message, Conversation } = require('../models');
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
+const { auth } = require("../middleware/authMiddleware");
 
 // Multer setup for handling file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// 💬 GET /api/messages/:conversationId - Fetch messages by conversation
-router.get("/:conversationId", async (req, res) => {
-  try {
-    const messages = await Message.find({ conversationId: req.params.conversationId })
-      .populate("sender", "username email profilePic")
-      .sort({ createdAt: 1 });
-
-    res.status(200).json(messages);
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({ error: "Failed to fetch messages." });
-  }
-});
-
-
 // ✉️ POST /api/messages - Send a new message (text and/or media)
-router.post("/", upload.single('file'), async (req, res) => {
-  const { senderId, conversationId, content } = req.body;
-
-  if (!senderId || !conversationId) {
-    return res.status(400).json({ error: "senderId and conversationId are required." });
-  }
-
+router.post("/", auth, upload.single('file'), async (req, res) => {
   try {
+    const { conversationId, content } = req.body;
+    const senderId = req.user._id;
+    
+    if (!conversationId) {
+      return res.status(400).json({ error: "conversationId is required." });
+    }
+
+    // Verify conversation exists and user is a participant
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    if (!conversation.participants.includes(senderId)) {
+      return res.status(403).json({ error: "You are not a participant in this conversation." });
+    }
+
+    // Get the recipient (other participant in the conversation)
+    const recipientId = conversation.participants.find(id => id.toString() !== senderId.toString());
+
+    if (!recipientId) {
+      return res.status(400).json({ error: "Could not determine recipient for this conversation." });
+    }
+
     let mediaUrl = "";
+    let type = "text";
 
     // If file is attached, upload it to Cloudinary
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file); // Await the Cloudinary upload
-      mediaUrl = uploaded.secure_url;  // Get the media URL from Cloudinary
+      try {
+        const uploaded = await uploadToCloudinary(req.file);
+        mediaUrl = uploaded.secure_url;
+        type = req.file.mimetype.startsWith('image/') ? 'image' : 'file';
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        return res.status(500).json({ error: "Failed to upload file." });
+      }
     }
 
     // Create and save new message
     const newMessage = new Message({
       sender: senderId,
-      conversationId,
-      content: content || "", // If no text, set empty string
-      media: mediaUrl,        // Store media URL if exists
+      recipient: recipientId,
+      content: content || "",
+      conversation: conversationId,
+      media: mediaUrl,
+      type
     });
 
 
-    const savedMessage = await newMessage.save();
-    console.log('Saved message:', savedMessage);
+    // Populate sender and recipient information
+    await newMessage.populate('sender', 'username profilePic');
+    await newMessage.populate('recipient', 'username profilePic');
+    await newMessage.save();
 
 
-    // Update lastMessage field in Conversation
-    await Conversation.findByIdAndUpdate(conversationId, { lastMessage: savedMessage._id });
+    // Update conversation's last message and activity
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: newMessage._id,
+      lastActivity: new Date()
+    });
 
     // Emit new message to connected clients via Socket.io
     const io = req.app.get('io');
     if (io) {
-      io.to(conversationId).emit("newMessage", savedMessage);
+      io.to(conversationId).emit("message:receive", {
+        conversationId,
+        message: newMessage
+      });
     }
 
     res.status(201).json({
       message: "✅ Message sent successfully!",
-      data: savedMessage,
+      data: newMessage,
     });
 
 
   } catch (err) {
     console.error("Error sending message:", err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: "Failed to send message." });
   }
 });
 
 // 🛠 PUT /api/messages/:id - Edit a message
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   const { content } = req.body;
 
 
@@ -87,63 +108,55 @@ router.put("/:id", async (req, res) => {
   }
 
   try {
-
-    const updatedMessage = await Message.findByIdAndUpdate(
-      req.params.id,
-      { content },
-      { new: true }
-    );
-
-    if (!updatedMessage) {
-
+    const message = await Message.findById(req.params.id);
+    if (!message) {
       return res.status(404).json({ error: "Message not found." });
     }
 
-    // Debug log
-    console.log('EDIT: message.sender:', message.sender, 'req.user._id:', req.user._id);
     // Check if the user is the sender of the message
-    if (String(message.sender) !== String(req.user._id)) {
+    if (message.sender.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "You can only edit your own messages." });
     }
 
-    message.text = text;
+    message.content = content;
     const updatedMessage = await message.save();
-    
-    const populatedMessage = await Message.findById(updatedMessage._id)
-      .populate("sender", "username email avatar");
 
-    res.status(200).json(populatedMessage);
+    // Emit the updated message to connected clients
+    const io = req.app.get('io');
+    if (io) {
+      io.to(message.conversation.toString()).emit("message:update", {
+        messageId: updatedMessage._id,
+        content: updatedMessage.content
+      });
+    }
+
+    res.status(200).json({
+      message: "✅ Message updated successfully.",
+      data: updatedMessage,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update message." });
   }
 });
 
-// DELETE /api/messages/:id - Delete a message
-router.delete("/:id", async (req, res) => {
+
+// 🗑️ DELETE /api/messages/:id - Delete a message
+router.delete('/:id', auth, async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
-    
     if (!message) {
-      return res.status(404).json({ error: "Message not found." });
+      return res.status(404).json({ error: 'Message not found.' });
     }
-
-    // Debug log
-    console.log('DELETE: message.sender:', message.sender, 'req.user._id:', req.user._id);
-    // Check if the user is the sender of the message
-    if (String(message.sender) !== String(req.user._id)) {
-      return res.status(403).json({ error: "You can only delete your own messages." });
+    // Only the sender can delete their message
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'You can only delete your own messages.' });
     }
-
-    try {
-      await Message.deleteOne({ _id: message._id });
-      res.status(200).json({ message: "Message deleted successfully." });
-    } catch (err) {
-      console.error('Error removing message:', err);
-      res.status(500).json({ error: "Failed to remove message." });
-    }
+    await message.deleteOne();
+    res.status(200).json({ message: 'Message deleted successfully.' });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete message." });
+    console.error('Error deleting message:', err);
+    res.status(500).json({ error: 'Failed to delete message.' });
   }
 });
 

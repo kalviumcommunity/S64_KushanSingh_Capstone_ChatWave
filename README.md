@@ -1,91 +1,128 @@
-# 🌊 ChatWave – Real-Time Chat App (Capstone Project)
+# 🌊 ChatWave
 
-## 📌 Project Title  
-**ChatWave 🌊 – A Real-Time Chat Application**
+A real-time, secure, and scalable messaging platform built with Node.js, Express, MongoDB, Socket.io, and React.
 
-## 💡 Project Idea  
-**ChatWave** is a full-stack real-time chat application built with a strong focus on backend engineering. It features user authentication, real-time messaging via WebSockets (Socket.io), and a minimal, clean React frontend. Users can log in, see who's online, chat instantly, and optionally share media. The backend is powered by Node.js, Express, MongoDB, and optionally enhanced with Redis caching and file upload support (Cloudinary).
+## 🚀 Features
 
-## 🧠 Brief Description  
-This project is part of my 30-day capstone journey focused on strengthening backend skills while delivering a production-grade application. While the frontend is minimal for presentation purposes, the backend follows industry practices including JWT-based authentication, real-time communication using Socket.io, RESTful API structuring, and optional CI/CD integration.
-
----
-
-## Render Deployment Link:-
-https://s64-kushansingh-capstone-chatwave.onrender.com
-
-## Netlify Deployment Link:-
-https://chatwaveio.netlify.app/
-
----
-## 🗓️ 30-Day Capstone Plan
-
-### ✅ WEEK 1: Setup & Authentication (Days 1–7)
-| Day | Focus |
-|-----|-------|
-| **Day 1** | Project setup, repo creation, backend + frontend init, Figma organization |
-| **Day 2** | MongoDB connection, User model, Signup/Login API, password hashing, JWT |
-| **Day 3** | Auth middleware, `/me` route, JWT validation, test with Postman |
-| **Day 4** | Login and Signup forms in React, connect frontend to backend |
-| **Day 5** | High-fidelity Figma designs for Auth screens |
-| **Day 6** | Dashboard layout with Navbar + Sidebar (mock online users) |
-| **Day 7** | Complete and test the full auth flow (frontend ↔ backend) |
-
----
-
-### 🚀 WEEK 2: Real-Time Messaging Core (Days 8–14)
-| Day | Focus |
-|-----|-------|
-| **Day 8** | Add Socket.io backend + frontend integration, auth for socket connections |
-| **Day 9** | Create and test `message:send` & `message:receive` socket events |
-| **Day 10** | MongoDB schemas for Message + Conversation, chat history APIs |
-| **Day 11** | Design chat UI in Figma (WhatsApp-style) |
-| **Day 12** | Build real-time chat UI in React, connect with sockets |
-| **Day 13** | Track online/offline status of users and reflect on UI |
-| **Day 14** | Typing indicators, time labels, UX polish |
-
----
-
-### ⚡ WEEK 3: Advanced Features (Days 15–21)
-| Day | Focus |
-|-----|-------|
-| **Day 15** | Fetch conversations from DB, render recent chats |
-| **Day 16** | Figma design for message states, read receipts, pinned chats |
-| **Day 17** | Implement read receipts and delivery status (optional) |
-| **Day 18** | Add Redis caching for performance (optional) |
-| **Day 19** | Enable media uploads (images) with Cloudinary (optional) |
-| **Day 20** | Design group chat & user settings UI in Figma |
-| **Day 21** | Add backend logic for group chats (optional) |
-
----
-
-### 📦 WEEK 4: Polish, Test & Deploy (Days 22–30)
-| Day | Focus |
-|-----|-------|
-| **Day 22** | Error handling, meaningful logs, consistent API responses |
-| **Day 23** | Final frontend polish + sync with Figma |
-| **Day 24** | (Optional) Add admin tools – moderation, reporting |
-| **Day 25** | Full app testing, bug fixing, mobile optimization |
-| **Day 26** | Setup CI/CD with Render or Vercel, GitHub Actions |
-| **Day 27** | Final documentation – README, API docs, architecture diagrams |
-| **Day 28** | Record demo video (optional), walkthrough signup → chat |
-| **Day 29** | Peer or mentor review, final testing |
-| **Day 30** | Submission + Celebration 🎉 |
-
----
+- Real-time messaging with Socket.io
+- Secure user authentication with JWT
+- MongoDB for data storage
+- Modern React frontend with Tailwind CSS
+- User presence tracking
+- Typing indicators
+- Message read receipts
+- Responsive design
 
 ## 🛠️ Tech Stack
-- **Frontend**: React, TailwindCSS, React Router
-- **Backend**: Node.js, Express, MongoDB, Mongoose
-- **Realtime**: Socket.io
-- **Authentication**: JWT, bcrypt
-- **Optional Tools**: Redis, Cloudinary, GitHub Actions, Render/Vercel
-- **Design**: Figma
 
----
+### Backend
+- Node.js
+- Express
+- MongoDB
+- Socket.io
+- JWT Authentication
+- Redis (optional, for caching)
 
-## 🎯 Goals
-- Learn real-time backend architecture
-- Practice clean code & scalable folder structure
-- Build a real product with authentication & messaging
-- Master API + WebSocket integration
+### Frontend
+- React
+- Tailwind CSS
+- Socket.io Client
+- React Router
+- React Hot Toast
+
+## 📦 Installation
+
+### Prerequisites
+- Node.js (v14 or higher)
+- MongoDB
+- npm or yarn
+
+### Backend Setup
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env` file in the backend directory with the following variables:
+   ```env
+   PORT=5000
+   MONGODB_URI=mongodb://localhost:27017/chatwave
+   JWT_SECRET=your_jwt_secret_key_here
+   JWT_EXPIRE=30d
+   CLIENT_URL=http://localhost:5173
+   ```
+
+4. Start the backend server:
+   ```bash
+   npm run dev
+   ```
+
+### Frontend Setup
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend/client
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env` file in the frontend/client directory with the following variables:
+   ```env
+   VITE_API_URL=http://localhost:5000
+   ```
+
+4. Start the frontend development server:
+   ```bash
+   npm run dev
+   ```
+
+## 🔧 Configuration
+
+### MongoDB
+- Make sure MongoDB is running on your local machine
+- Update the `MONGODB_URI` in the backend `.env` file if needed
+
+### Redis (Optional)
+- Install Redis on your machine
+- Uncomment and update the Redis configuration in the backend `.env` file
+
+## 📚 API Documentation
+
+### Authentication
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/logout` - Logout user
+- `GET /api/auth/me` - Get current user
+
+### Chat
+- `GET /api/chat/conversations` - Get all conversations
+- `GET /api/chat/messages/:conversationId` - Get messages for a conversation
+- `PUT /api/chat/messages/read` - Mark messages as read
+- `DELETE /api/chat/messages/:messageId` - Delete a message
+- `GET /api/chat/users/search` - Search users
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Socket.io for real-time communication
+- MongoDB for database
+- React for frontend framework
+- Tailwind CSS for styling

@@ -1,38 +1,17 @@
-const dotenv = require("dotenv");
-const connectDB = require("./config/db");
+const http = require('http');
+const socketIo = require('socket.io');
+const connectDB = require('./config/db');
+const socketIO = require('./socket');
+const app = require('./app');
 
-const app = require("./app");
-const http = require("http");
-const { Server } = require("socket.io");
-const setupSocket = require("./socket");
+// Connect to database
+connectDB();
 
-dotenv.config();
-
-const PORT = process.env.PORT;
-
-// Create HTTP server
 const server = http.createServer(app);
+const io = socketIO(server);
 
 
-// Create Socket.IO server
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins (you can restrict later)
-    methods: ["GET", "POST"],
-  },
-});
-
-
-// Attach io to app if needed elsewhere
-app.set('io', io);
-
-// Connect DB and then start server
-connectDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
-
-
-  // Setup Socket.IO listeners after DB is connected
-  setupSocket(io);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server running on port http://localhost:${PORT}/`);
 });

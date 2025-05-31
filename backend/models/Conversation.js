@@ -11,6 +11,14 @@ const conversationSchema = new mongoose.Schema(
       },
     ],
 
+    // Users who have deleted this conversation
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     // Flag to check if it's a group chat
     isGroup: {
       type: Boolean,
@@ -38,12 +46,35 @@ const conversationSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    // Optional group name
+    groupName: {
+      type: String,
+      trim: true,
+    },
+
+    // Reference to the group admin
+    groupAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    // Last activity timestamp
+    lastActivity: {
+      type: Date,
+      default: Date.now,
+    }
   },
   {
-    timestamps: true, // Automatically manages createdAt and updatedAt
+    timestamps: true,
+    strictPopulate: false
   }
 );
 
-// Export the model
-const Conversation = mongoose.model("Conversation", conversationSchema);
+// Create indexes
+conversationSchema.index({ participants: 1 });
+
+// Check if the model already exists before creating it
+const Conversation = mongoose.models.Conversation || mongoose.model("Conversation", conversationSchema);
+
 module.exports = Conversation;
