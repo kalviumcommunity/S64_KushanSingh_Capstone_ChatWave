@@ -140,7 +140,7 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversatio
     try {
       const formData = new FormData();
       formData.append('conversationId', conversation._id);
-      formData.append('content', newMessage);
+      formData.append('text', newMessage);
       if (selectedFile) {
         formData.append('file', selectedFile);
       }
@@ -148,7 +148,7 @@ const ChatWindow = ({ conversation, onDeleteChat, onDeleteHistory, onConversatio
       const tempMessage = {
         _id: Date.now().toString(),
         sender: user,
-        content: newMessage,
+        text: newMessage,
         media: selectedFile ? URL.createObjectURL(selectedFile) : null,
         createdAt: new Date(),
         isOptimistic: true
