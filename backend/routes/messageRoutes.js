@@ -13,7 +13,7 @@ const upload = multer({ storage });
 router.post("/", auth, upload.single('file'), async (req, res) => {
   try {
     const { conversationId } = req.body;
-    const content = req.body.content || req.body.text || "";
+    const text = req.body.text || req.body.content || "";
     const senderId = req.user._id;
     
     if (!conversationId) {
@@ -56,7 +56,7 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
     const newMessage = new Message({
       sender: senderId,
       recipient: recipientId,
-      content: content,
+      text: text,
       conversation: conversationId,
       media: mediaUrl,
       type
@@ -101,11 +101,10 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
 
 // 🛠 PUT /api/messages/:id - Edit a message
 router.put("/:id", auth, async (req, res) => {
-  const { content } = req.body;
+  const text = req.body.text || req.body.content;
 
-
-  if (!content) {
-    return res.status(400).json({ error: "Updated content is required." });
+  if (!text) {
+    return res.status(400).json({ error: "Updated text is required." });
   }
 
   try {
@@ -119,7 +118,7 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(403).json({ error: "You can only edit your own messages." });
     }
 
-    message.content = content;
+    message.text = text;
     const updatedMessage = await message.save();
 
     // Emit the updated message to connected clients
@@ -127,7 +126,7 @@ router.put("/:id", auth, async (req, res) => {
     if (io) {
       io.to(message.conversation.toString()).emit("message:update", {
         messageId: updatedMessage._id,
-        content: updatedMessage.content
+        text: updatedMessage.text
       });
     }
 
