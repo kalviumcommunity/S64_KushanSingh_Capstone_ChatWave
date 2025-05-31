@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const Message = require("../models/Message");
+
 const Conversation = require("../models/Conversation");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
@@ -19,9 +20,11 @@ router.get("/:conversationId", async (req, res) => {
     res.status(200).json(messages);
   } catch (err) {
     console.error(err);
+
     res.status(500).json({ error: "Failed to fetch messages." });
   }
 });
+
 
 // ✉️ POST /api/messages - Send a new message (text and/or media)
 router.post("/", upload.single('file'), async (req, res) => {
@@ -48,7 +51,10 @@ router.post("/", upload.single('file'), async (req, res) => {
       media: mediaUrl,        // Store media URL if exists
     });
 
+
     const savedMessage = await newMessage.save();
+    console.log('Saved message:', savedMessage);
+
 
     // Update lastMessage field in Conversation
     await Conversation.findByIdAndUpdate(conversationId, { lastMessage: savedMessage._id });
@@ -64,6 +70,7 @@ router.post("/", upload.single('file'), async (req, res) => {
       data: savedMessage,
     });
 
+
   } catch (err) {
     console.error("Error sending message:", err);
     res.status(500).json({ error: "Failed to send message." });
@@ -74,11 +81,13 @@ router.post("/", upload.single('file'), async (req, res) => {
 router.put("/:id", async (req, res) => {
   const { content } = req.body;
 
+
   if (!content) {
     return res.status(400).json({ error: "Updated content is required." });
   }
 
   try {
+
     const updatedMessage = await Message.findByIdAndUpdate(
       req.params.id,
       { content },
@@ -86,16 +95,55 @@ router.put("/:id", async (req, res) => {
     );
 
     if (!updatedMessage) {
+
       return res.status(404).json({ error: "Message not found." });
     }
 
-    res.status(200).json({
-      message: "✅ Message updated successfully.",
-      data: updatedMessage,
-    });
+    // Debug log
+    console.log('EDIT: message.sender:', message.sender, 'req.user._id:', req.user._id);
+    // Check if the user is the sender of the message
+    if (String(message.sender) !== String(req.user._id)) {
+      return res.status(403).json({ error: "You can only edit your own messages." });
+    }
+
+    message.text = text;
+    const updatedMessage = await message.save();
+    
+    const populatedMessage = await Message.findById(updatedMessage._id)
+      .populate("sender", "username email avatar");
+
+    res.status(200).json(populatedMessage);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update message." });
+  }
+});
+
+// DELETE /api/messages/:id - Delete a message
+router.delete("/:id", async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.id);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Message not found." });
+    }
+
+    // Debug log
+    console.log('DELETE: message.sender:', message.sender, 'req.user._id:', req.user._id);
+    // Check if the user is the sender of the message
+    if (String(message.sender) !== String(req.user._id)) {
+      return res.status(403).json({ error: "You can only delete your own messages." });
+    }
+
+    try {
+      await Message.deleteOne({ _id: message._id });
+      res.status(200).json({ message: "Message deleted successfully." });
+    } catch (err) {
+      console.error('Error removing message:', err);
+      res.status(500).json({ error: "Failed to remove message." });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete message." });
   }
 });
 
