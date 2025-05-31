@@ -1,24 +1,44 @@
 import React, { useState } from 'react';
 import FileUpload from './FileUpload';
+import axios from '../utils/axios';
 
-const MessageInput = ({ onSendMessage }) => {
+const MessageInput = ({ conversationId, onMessageSent }) => {
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (message.trim() || attachedFile) {
-      onSendMessage({
-        text: message.trim(),
-        file: attachedFile
+    if ((!message.trim() && !attachedFile) || isSending) return;
+
+    setIsSending(true);
+    try {
+      const formData = new FormData();
+      if (message.trim()) {
+        formData.append('text', message.trim());
+      }
+      if (attachedFile) {
+        formData.append('file', attachedFile);
+      }
+      formData.append('conversationId', conversationId);
+
+      await axios.post('/messages', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
+
       setMessage('');
       setAttachedFile(null);
+      onMessageSent();
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setIsSending(false);
     }
   };
 
   const handleFileUpload = (file) => {
-    console.log('File uploaded:', file); // Debug log
     setAttachedFile(file);
   };
 
@@ -27,10 +47,10 @@ const MessageInput = ({ onSendMessage }) => {
       {attachedFile && (
         <div className="mb-2 p-2 bg-gray-50 rounded-lg flex items-center justify-between">
           <div className="flex items-center">
-            {attachedFile.mimetype?.startsWith('image/') ? (
+            {attachedFile.type?.startsWith('image/') ? (
               <img
-                src={`http://localhost:5000/uploads/${attachedFile.filename}`}
-                alt={attachedFile.filename}
+                src={URL.createObjectURL(attachedFile)}
+                alt={attachedFile.name}
                 className="w-8 h-8 object-cover rounded mr-2"
                 onError={(e) => {
                   console.error('Preview image load error:', e);
@@ -42,7 +62,7 @@ const MessageInput = ({ onSendMessage }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
               </svg>
             )}
-            <span className="text-sm text-gray-600">{attachedFile.filename}</span>
+            <span className="text-sm text-gray-600">{attachedFile.name}</span>
           </div>
           <button
             type="button"
@@ -66,14 +86,14 @@ const MessageInput = ({ onSendMessage }) => {
         />
         <button
           type="submit"
-          disabled={!message.trim() && !attachedFile}
+          disabled={(!message.trim() && !attachedFile) || isSending}
           className={`px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
-            ${!message.trim() && !attachedFile
+            ${(!message.trim() && !attachedFile) || isSending
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-500 text-white hover:bg-blue-600'
             }`}
         >
-          Send
+          {isSending ? 'Sending...' : 'Send'}
         </button>
       </div>
     </form>

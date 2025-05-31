@@ -16,16 +16,17 @@ const messageSchema = new mongoose.Schema({
   },
 
   // Text content of the message (optional for media-only messages)
-  content: {
+  text: {
     type: String,
     default: '',
     trim: true,
   },
 
   // URL of media (images/files) if attached
-  media: {
-    type: String,
-    default: '',
+  file: {
+    filename: String,
+    mimetype: String,
+    path: String
   },
 
   // Users who have read the message (for read receipt tracking)
