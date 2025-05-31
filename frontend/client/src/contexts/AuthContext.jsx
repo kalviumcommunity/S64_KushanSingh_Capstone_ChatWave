@@ -1,19 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
-
-// Create axios instance with base config
-const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
