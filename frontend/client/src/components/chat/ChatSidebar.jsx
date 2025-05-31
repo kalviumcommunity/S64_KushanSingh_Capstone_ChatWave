@@ -210,10 +210,12 @@ const ChatSidebar = ({ onSelectConversation, onOpenNewChat, conversations, setCo
             <span className={`text-xs whitespace-nowrap ml-2 font-medium transition-all duration-150 ease-in-out ${
               hasUnreadMessages ? 'text-blue-600' : 'text-gray-400'
             }`}>
-              {new Date(conversation.lastMessage?.createdAt).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
+              {conversation.lastMessage?.createdAt
+                ? new Date(conversation.lastMessage.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : ' '}
             </span>
           </div>
           <p className={`text-sm truncate font-light transition-all duration-150 ease-in-out ${
