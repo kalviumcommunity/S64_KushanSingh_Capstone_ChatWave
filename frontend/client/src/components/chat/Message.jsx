@@ -58,7 +58,7 @@ const Message = ({ message, isOwnMessage, showAvatar }) => {
               className="max-w-full h-auto rounded-lg mb-2"
             />
           )}
-          <p className="text-sm break-words">{message.content}</p>
+          <p className="text-sm break-words">{message.content || message.text}</p>
           <div className="flex items-center justify-end mt-1 space-x-1">
             <span
               className={`text-xs ${
