@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 
 const Message = ({ message, isOwnMessage, showAvatar }) => {
   const [showOptions, setShowOptions] = useState(false);
+  console.log('Message object:', message);
 
   const handleDeleteMessage = async () => {
     try {
