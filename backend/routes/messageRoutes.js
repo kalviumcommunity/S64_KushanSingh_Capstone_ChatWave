@@ -12,7 +12,8 @@ const upload = multer({ storage });
 // ✉️ POST /api/messages - Send a new message (text and/or media)
 router.post("/", auth, upload.single('file'), async (req, res) => {
   try {
-    const { conversationId, content } = req.body;
+    const { conversationId } = req.body;
+    const content = req.body.content || req.body.text || "";
     const senderId = req.user._id;
     
     if (!conversationId) {
@@ -55,7 +56,7 @@ router.post("/", auth, upload.single('file'), async (req, res) => {
     const newMessage = new Message({
       sender: senderId,
       recipient: recipientId,
-      content: content || "",
+      content: content,
       conversation: conversationId,
       media: mediaUrl,
       type
