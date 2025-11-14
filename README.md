@@ -2,6 +2,8 @@
 
 A real-time, secure, and scalable messaging platform built with Node.js, Express, MongoDB, Socket.io, and React.
 
+# Deployed Link:- https://chatwaveio.netlify.app/
+
 ## 🚀 Features
 
 - Real-time messaging with Socket.io
